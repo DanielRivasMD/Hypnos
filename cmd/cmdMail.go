@@ -84,9 +84,14 @@ var mailCmd = &cobra.Command{
 
 		fmt.Printf("Downtime started for %s (daemon=%v)\n", duration, daemonize)
 		RunDowntime(duration, func() {
-			if err := Notify("Hypnos", "Downtime complete"); err != nil {
-				fmt.Fprintf(os.Stderr, "notify failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "▸ [daemon] timer fired – about to notify…\n")
+
+			err := Notify("Hypnos", "Downtime complete")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "notification failed:", err)
 			}
+
+			fmt.Fprintf(os.Stderr, "▸ [daemon] notification attempt finished\n")
 			// signal that callback has finished
 			close(done)
 		})
