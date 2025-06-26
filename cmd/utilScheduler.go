@@ -2,10 +2,8 @@ package cmd
 
 import "time"
 
-// RunDowntime sleeps for d, then calls onDone.
+// RunDowntime waits for d, then invokes onDone in its own goroutine,
+// without creating a sleeping goroutine up front.
 func RunDowntime(d time.Duration, onDone func()) {
-	go func() {
-		time.Sleep(d)
-		onDone()
-	}()
+	time.AfterFunc(d, onDone)
 }
