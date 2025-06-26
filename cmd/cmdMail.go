@@ -33,11 +33,17 @@ var (
 	duration time.Duration
 )
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 var mailCmd = &cobra.Command{
 	Use:   "mail",
 	Short: "Start a downtime timer and notify when it ends",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Setup daemon context
+
+		// 1) Debug: print whether we're daemonizing
+		fmt.Fprintf(os.Stderr, "⟳ debug: daemonize=%v\n", daemonize)
+
+		// Setup the daemon context
 		cntxt := &daemon.Context{
 			PidFileName: "hypnos.pid",
 			PidFilePerm: 0644,
@@ -47,31 +53,48 @@ var mailCmd = &cobra.Command{
 			Umask:       027,
 		}
 
-		// If requested, fork to background
+		// 2) If requested, fork into background
 		if daemonize {
+			cwd, _ := os.Getwd()
+			fmt.Fprintf(os.Stderr, "▸ [parent] forking from cwd %q…\n", cwd)
 			child, err := cntxt.Reborn()
 			if err != nil {
 				return fmt.Errorf("unable to daemonize: %w", err)
 			}
 			if child != nil {
-				// parent exits immediately
+				// parent process: log child PID and exit
+				fmt.Fprintf(os.Stderr, "▸ [parent] spawned child pid=%d\n", child.Pid)
 				return nil
 			}
-			// child continues:
+			// child process continues below
 			defer cntxt.Release()
+			pid := os.Getpid()
+			fmt.Fprintf(os.Stderr,
+				"▸ [daemon] running as pid=%d, writing pidfile %s\n",
+				pid, cntxt.PidFileName,
+			)
 		}
 
-		// Kick off the timer
+		////////////////////////////////////////////////////////////////////////////////////////////////
+		// Kick off the downtime timer with notification callback
+		//
+		// We use a channel to block until the callback runs,
+		// then exit cleanly (no deadlock).
+		done := make(chan struct{})
+
 		fmt.Printf("Downtime started for %s (daemon=%v)\n", duration, daemonize)
 		RunDowntime(duration, func() {
 			if err := Notify("Hypnos", "Downtime complete"); err != nil {
 				fmt.Fprintf(os.Stderr, "notify failed: %v\n", err)
 			}
+			// signal that callback has finished
+			close(done)
 		})
 
-		// If we're daemonized, block forever; otherwise exit immediately
+		////////////////////////////////////////////////////////////////////////////////////////////////
+		// If we're daemonized, wait for the callback; else return immediately
 		if daemonize {
-			select {}
+			<-done
 		}
 		return nil
 	},
