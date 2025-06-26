@@ -17,38 +17,71 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"time"
+
+	daemon "github.com/sevlyar/go-daemon"
 	"github.com/spf13/cobra"
-	"github.com/ttacon/chalk"
 )
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+var (
+	// flag to run the command as a background daemon
+	daemonize bool
 
-// Global declarations
-var ()
+	// how long the “downtime” should last
+	duration time.Duration
+)
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// mailCmd
 var mailCmd = &cobra.Command{
 	Use:   "mail",
-	Short: "" + chalk.Yellow.Color("") + ".",
-	Long: chalk.Green.Color(chalk.Bold.TextStyle("Daniel Rivas ")) + chalk.Dim.TextStyle(chalk.Italic.TextStyle("<danielrivasmd@gmail.com>")) + `
-`,
+	Short: "Start a downtime timer and notify when it ends",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Setup daemon context
+		cntxt := &daemon.Context{
+			PidFileName: "hypnos.pid",
+			PidFilePerm: 0644,
+			LogFileName: "hypnos.log",
+			LogFilePerm: 0640,
+			WorkDir:     "./",
+			Umask:       027,
+		}
 
-	Example: `
-` + chalk.Cyan.Color("") + ` help ` + chalk.Yellow.Color("") + chalk.Yellow.Color("mail"),
+		// If requested, fork to background
+		if daemonize {
+			child, err := cntxt.Reborn()
+			if err != nil {
+				return fmt.Errorf("unable to daemonize: %w", err)
+			}
+			if child != nil {
+				// parent exits immediately
+				return nil
+			}
+			// child continues:
+			defer cntxt.Release()
+		}
 
-	////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Kick off the timer
+		fmt.Printf("Downtime started for %s (daemon=%v)\n", duration, daemonize)
+		RunDowntime(duration, func() {
+			if err := Notify("Hypnos", "Downtime complete"); err != nil {
+				fmt.Fprintf(os.Stderr, "notify failed: %v\n", err)
+			}
+		})
 
+		// If we're daemonized, block forever; otherwise exit immediately
+		if daemonize {
+			select {}
+		}
+		return nil
+	},
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// execute prior main
 func init() {
+	// attach flags
+	mailCmd.Flags().BoolVarP(&daemonize, "daemon", "d", false, "run in background")
+	mailCmd.Flags().DurationVarP(&duration, "duration", "t", time.Hour, "how long to wait")
 	rootCmd.AddCommand(mailCmd)
-
-	// flags
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
