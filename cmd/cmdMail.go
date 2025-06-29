@@ -54,7 +54,7 @@ var mailCmd = &cobra.Command{
 		}
 
 		// 2) If requested, fork into background
-		if daemonize {
+		if !daemonize {
 			cwd, _ := os.Getwd()
 			fmt.Fprintf(os.Stderr, "▸ [parent] forking from cwd %q…\n", cwd)
 			child, err := cntxt.Reborn()
@@ -75,9 +75,7 @@ var mailCmd = &cobra.Command{
 			)
 		}
 
-		////////////////////////////////////////////////////////////////////////////////////////////////
 		// Kick off the downtime timer with notification callback
-		//
 		// We use a channel to block until the callback runs,
 		// then exit cleanly (no deadlock).
 		done := make(chan struct{})
@@ -96,14 +94,15 @@ var mailCmd = &cobra.Command{
 			close(done)
 		})
 
-		////////////////////////////////////////////////////////////////////////////////////////////////
 		// If we're daemonized, wait for the callback; else return immediately
-		if daemonize {
+		if !daemonize {
 			<-done
 		}
 		return nil
 	},
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func init() {
 	// attach flags
