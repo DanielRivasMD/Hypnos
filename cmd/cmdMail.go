@@ -35,6 +35,12 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO: rename script & command generic
+// TODO: add feature to specify only launching notification
+// TODO: add recurrent option
+// TODO: allow `duration` or `time`
+
+
 // dreamMeta holds persisted state for each mail invocation.
 type dreamMeta struct {
 	Name      string        `json:"name"`

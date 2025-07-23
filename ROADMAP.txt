@@ -1,6 +1,11 @@
-- use PID process over goroutines
 - set a timer for taking breaks
-- set sleeping time for specific app or service
-- let the timer be defined as time from call (mins / hours) or a set time, for example: 16:00
-- allow to launch several services at once
-- use either simple notifications, or integrate launching desired app
+
+==================================================
+cmd/cmdMail.go
+  line 38     TODO   rename script & command generic
+  line 39     TODO   add feature to specify only launching notification
+  line 40     TODO   add recurrent option
+  line 41     TODO   allow `duration` or `time`
+cmd/root.go
+  line 27     TODO   add command to launch all jobs as recurrent, i.e., start session
+==================================================
