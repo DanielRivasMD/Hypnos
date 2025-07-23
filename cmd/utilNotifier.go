@@ -1,15 +1,21 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 package cmd
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
 	"fmt"
 	"os/exec"
 )
 
-// Notify sends a macOS user notification via one of:
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// notify sends a macOS user notification via one of:
 // 1) terminal-notifier (preferred, with -sender for GUI session access)
 // 2) AppleScript (osascript fallback)
 // Returns an error if no supported notifier is found or the command fails.
-func Notify(title, msg string) error {
+func notify(title, msg string) error {
 	// 1) Try terminal-notifier if installed
 	if tnPath, err := exec.LookPath("terminal-notifier"); err == nil {
 		cmd := exec.Command(
@@ -37,3 +43,5 @@ func Notify(title, msg string) error {
 
 	return fmt.Errorf("no macOS notifier found: install terminal-notifier or ensure osascript is in PATH")
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
