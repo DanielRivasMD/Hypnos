@@ -16,88 +16,96 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 package cmd
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
-	daemon "github.com/sevlyar/go-daemon"
 	"github.com/spf13/cobra"
 )
 
-var (
-	// flag to run the command as a background daemon
-	daemonize bool
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// how long the “downtime” should last
+var (
 	duration time.Duration
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// mailCmd
 var mailCmd = &cobra.Command{
 	Use:   "mail",
 	Short: "Start a downtime timer and notify when it ends",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		// 1) Debug: print whether we're daemonizing
-		fmt.Fprintf(os.Stderr, "⟳ debug: daemonize=%v\n", daemonize)
+		////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		// Setup the daemon context
-		cntxt := &daemon.Context{
-			PidFileName: "hypnos.pid",
-			PidFilePerm: 0644,
-			LogFileName: "hypnos.log",
-			LogFilePerm: 0640,
-			WorkDir:     "./",
-			Umask:       027,
+		// Resolve local Hypnos data directories
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("unable to resolve home directory: %w", err)
+		}
+		baseDir := filepath.Join(home, ".hypnos")
+		logDir := filepath.Join(baseDir, "logs")
+		pidDir := filepath.Join(baseDir, "daemons")
+		os.MkdirAll(logDir, 0755)
+		os.MkdirAll(pidDir, 0755)
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		// Write PID file
+		pid := os.Getpid()
+		pidPath := filepath.Join(pidDir, fmt.Sprintf("mail-%d.pid", pid))
+		if err := os.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n", pid)), 0644); err != nil {
+			return fmt.Errorf("unable to write pid file: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "▸ [mail] running as pid=%d, recorded in %s\n", pid, pidPath)
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		// Open log file (optional)
+		logPath := filepath.Join(logDir, fmt.Sprintf("mail-%d.log", pid))
+		logFile, err := os.Create(logPath)
+		if err != nil {
+			return fmt.Errorf("unable to open log file: %w", err)
+		}
+		defer logFile.Close()
+
+		// tee logs to stderr + file
+		log := func(format string, args ...interface{}) {
+			msg := fmt.Sprintf(format, args...)
+			fmt.Fprintln(os.Stderr, msg)
+			fmt.Fprintln(logFile, msg)
 		}
 
-		// 2) If requested, fork into background
-		if !daemonize {
-			cwd, _ := os.Getwd()
-			fmt.Fprintf(os.Stderr, "▸ [parent] forking from cwd %q…\n", cwd)
-			child, err := cntxt.Reborn()
-			if err != nil {
-				return fmt.Errorf("unable to daemonize: %w", err)
-			}
-			if child != nil {
-				// parent process: log child PID and exit
-				fmt.Fprintf(os.Stderr, "▸ [parent] spawned child pid=%d\n", child.Pid)
-				return nil
-			}
-			// child process continues below
-			defer cntxt.Release()
-			pid := os.Getpid()
-			fmt.Fprintf(os.Stderr,
-				"▸ [daemon] running as pid=%d, writing pidfile %s\n",
-				pid, cntxt.PidFileName,
-			)
-		}
+		////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		// Kick off the downtime timer with notification callback
-		// We use a channel to block until the callback runs,
-		// then exit cleanly (no deadlock).
+		// Setup channel for signaling
 		done := make(chan struct{})
+		log("Downtime started for %s", duration)
 
-		fmt.Printf("Downtime started for %s (daemon=%v)\n", duration, daemonize)
-		RunDowntime(duration, func() {
-			fmt.Fprintf(os.Stderr, "▸ [daemon] timer fired – about to notify…\n")
-
-			err := Notify("Hypnos", "Downtime complete")
+		runDowntime(duration, func() {
+			log("▸ [mail] timer fired – attempting notification")
+			err := notify("Hypnos", "Downtime complete")
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "notification failed:", err)
+				log("▸ [mail] notification failed: %v", err)
+			} else {
+				log("▸ [mail] notification succeeded")
 			}
-
-			fmt.Fprintf(os.Stderr, "▸ [daemon] notification attempt finished\n")
-			// signal that callback has finished
 			close(done)
 		})
 
-		// If we're daemonized, wait for the callback; else return immediately
-		if !daemonize {
-			<-done
-		}
+		// Wait for completion
+		<-done
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		// Clean up
+		log("▸ [mail] downtime finished, removing pid file")
+		os.Remove(pidPath)
 		return nil
 	},
 }
@@ -105,8 +113,6 @@ var mailCmd = &cobra.Command{
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func init() {
-	// attach flags
-	mailCmd.Flags().BoolVarP(&daemonize, "daemon", "d", false, "run in background")
 	mailCmd.Flags().DurationVarP(&duration, "duration", "t", time.Hour, "how long to wait")
 	rootCmd.AddCommand(mailCmd)
 }
