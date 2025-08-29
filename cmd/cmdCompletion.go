@@ -16,6 +16,8 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 package cmd
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 import (
 	"fmt"
 	"os"
@@ -27,15 +29,27 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var ()
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 var completionCmd = &cobra.Command{
 	Use:    "completion " + chalk.Dim.TextStyle(chalk.Italic.TextStyle("[bash|zsh|fish|powershell]")),
 	Hidden: true,
-	Short:  "Generate completion script for various shells.",
-	Long: fmt.Sprintf(`To load completions:
+	Long:   helpCompletion,
+
+	DisableFlagsInUseLine: true,
+	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
+	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+
+	Run: runCompletion,
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func init() {
+	rootCmd.AddCommand(completionCmd)
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+var helpCompletion = fmt.Sprintf(`To load completions:
 
 Bash:
 
@@ -73,35 +87,21 @@ PowerShell:
   # To load completions for every new session, run:
   PS> %[1]s completion powershell > %[1]s.ps1
   # and source this file from your PowerShell profile.
-`, rootCmd.Name()),
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	DisableFlagsInUseLine: true,
-	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
-	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	Run: func(cmd *cobra.Command, args []string) {
-		// Generate the appropriate shell completion script based on the provided argument.
-		switch args[0] {
-		case "bash":
-			horus.CheckErr(cmd.Root().GenBashCompletion(os.Stdout))
-		case "zsh":
-			horus.CheckErr(cmd.Root().GenZshCompletion(os.Stdout))
-		case "fish":
-			horus.CheckErr(cmd.Root().GenFishCompletion(os.Stdout, true))
-		case "powershell":
-			horus.CheckErr(cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout))
-		}
-	},
-}
+`, rootCmd.Name())
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func init() {
-	rootCmd.AddCommand(completionCmd)
+func runCompletion(cmd *cobra.Command, args []string) {
+	switch args[0] {
+	case "bash":
+		horus.CheckErr(cmd.Root().GenBashCompletion(os.Stdout))
+	case "zsh":
+		horus.CheckErr(cmd.Root().GenZshCompletion(os.Stdout))
+	case "fish":
+		horus.CheckErr(cmd.Root().GenFishCompletion(os.Stdout, true))
+	case "powershell":
+		horus.CheckErr(cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout))
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
