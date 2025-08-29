@@ -16,30 +16,19 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 package cmd
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 import (
 	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
-	"github.com/ttacon/chalk"
-)
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// TODO: add command to launch all jobs as recurrent, i.e., start session
-
-var (
-	verbose bool
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var rootCmd = &cobra.Command{
-	Use:   "hypnos",
-	Short: "Customize with your actual tool description",
-	Long: chalk.Green.Color(chalk.Bold.TextStyle("Daniel Rivas ")) + chalk.Dim.TextStyle(chalk.Italic.TextStyle("<danielrivasmd@gmail.com>")) + `
-
-` + chalk.Blue.Color("hypnos") + `
-`,
-	Example: chalk.White.Color("hypnos") + ` ` + chalk.Bold.TextStyle(chalk.White.Color("help")),
+	Use:     "hypnos",
+	Long:    helpRoot,
+	Example: exampleRoot,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -50,8 +39,15 @@ func Execute() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO: add command to launch all jobs as recurrent, i.e., start session
+var (
+	verbose bool
+)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose diagnostic output")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose diagnostics")
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
