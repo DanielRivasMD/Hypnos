@@ -1,5 +1,5 @@
 /*
-Copyright © 2025 Daniel Rivas <danielrivasmd@gdream.com>
+Copyright © 2025 Daniel Rivas <danielrivasmd@gmail.com>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -40,14 +40,14 @@ import (
 // TODO: add recurrent option
 // TODO: allow `duration` or `time`
 
-// dreamMeta holds persisted state for each dream invocation.
-type dreamMeta struct {
-	Name      string        `json:"name"`
-	Script    string        `json:"script"`
-	LogPath   string        `json:"log_path"`
-	Duration  time.Duration `json:"duration"`
-	PID       int           `json:"pid"`
-	InvokedAt time.Time     `json:"invoked_at"`
+// probeMeta holds persisted state for each probe invocation
+type probeMeta struct {
+	Name       string        `json:"name"`
+	Script     string        `json:"script"`
+	LogPath    string        `json:"log_path"`
+	Duration   time.Duration `json:"duration"`
+	PID        int           `json:"pid"`
+	Quiescence time.Time     `json:"quiescence"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -55,7 +55,7 @@ type dreamMeta struct {
 var (
 	// launcher flags
 	configName string
-	dreamName  string
+	probeName  string
 	logName    string
 	scriptPath string
 	duration   time.Duration
@@ -71,62 +71,63 @@ var (
 
 func init() {
 	// user-facing flags
-	dreamCmd.Flags().StringVarP(&configName, "config", "c", "", "load workflow from ~/.hypnos/config/<name>.toml")
-	dreamCmd.Flags().StringVarP(&dreamName, "name", "n", "", "instance name (manual or default: <config>-<ts>)")
-	dreamCmd.Flags().StringVarP(&logName, "log", "l", "", "log file basename (no .log)")
-	dreamCmd.Flags().StringVarP(&scriptPath, "script", "s", "", "shell command to execute")
-	dreamCmd.Flags().DurationVarP(&duration, "duration", "t", time.Hour, "how long to wait")
-	rootCmd.AddCommand(dreamCmd)
+	hibernateCmd.Flags().StringVarP(&configName, "config", "c", "", "load workflow from ~/.hypnos/config/<name>.toml")
+	hibernateCmd.Flags().StringVarP(&probeName, "name", "n", "", "instance name (manual or default: <config>-<ts>)")
+	hibernateCmd.Flags().StringVarP(&logName, "log", "l", "", "log file basename (no .log)")
+	hibernateCmd.Flags().StringVarP(&scriptPath, "script", "s", "", "shell command to execute")
+	hibernateCmd.Flags().DurationVarP(&duration, "duration", "t", time.Hour, "how long to wait")
+	rootCmd.AddCommand(hibernateCmd)
 
 	// hidden worker flags
-	dreamRunCmd.Flags().StringVar(&runName, "name", "", "instance name")
-	dreamRunCmd.Flags().StringVar(&runLog, "log", "", "log basename")
-	dreamRunCmd.Flags().StringVar(&runScript, "script", "", "shell command to execute")
-	dreamRunCmd.Flags().DurationVar(&runDuration, "duration", time.Hour, "how long to wait")
-	rootCmd.AddCommand(dreamRunCmd)
+	hibernateRunCmd.Flags().StringVar(&runName, "name", "", "instance name")
+	hibernateRunCmd.Flags().StringVar(&runLog, "log", "", "log basename")
+	hibernateRunCmd.Flags().StringVar(&runScript, "script", "", "shell command to execute")
+	hibernateRunCmd.Flags().DurationVar(&runDuration, "duration", time.Hour, "how long to wait")
+	rootCmd.AddCommand(hibernateRunCmd)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// dreamCmd is the user-facing command. It either accepts all flags manually:
+// hibernateCmd is the user-facing command. It either accepts all flags manually:
 //
-//	hypnos dream --duration 5s --log in-vivo --name in-vivo --script 'open -a dream'
+//	hypnos hibernate --duration 5s --log in-vivo --name in-vivo --script 'open -a Program'
 //
 // or it loads defaults from a TOML:
 //
-//	hypnos dream --config dream
-var dreamCmd = &cobra.Command{
-	Use:     "dream",
+//	hypnos hibernate --config probe
+var hibernateCmd = &cobra.Command{
+	Use:     "hibernate",
 	Short:   "Invoke a managed downtime timer",
-	Long:    helpDream,
-	Example: exampleDream,
+	Long:    helpHibernate,
+	Example: exampleHibernate,
 
-	PreRunE: preRunDream,
+	PreRun: preRunHibernate,
 
-	Run: runDream,
+	Run: runHibernate,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// dreamRunCmd is the hidden worker. It sleeps, execs your command, sends notification, then exits.
-var dreamRunCmd = &cobra.Command{
-	Use:    "dream-run",
+// hibernateRunCmd is the hidden worker
+// sleeps, execs your command, sends notification, then exits
+var hibernateRunCmd = &cobra.Command{
+	Use:    "hibernate-run",
 	Hidden: true,
-	Run:    hiddenRunDream,
+	Run:    hiddenRunHibernate,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func preRunDream(cmd *cobra.Command, args []string) error {
-	const op = "hypnos.dream.pre"
+func preRunHibernate(cmd *cobra.Command, args []string) {
+	const op = "hypnos.hibernate.pre"
 
 	// Ensure our structure under ~/.hypnos
 	home, err := domovoi.FindHome(verbose)
 	if err != nil {
-		return fmt.Errorf("cannot find home: %w", err)
+		fmt.Errorf("cannot find home: %w", err)
 	}
 	base := filepath.Join(home, ".hypnos")
-	for _, sub := range []string{"config", "logs", "meta", "dreams"} {
+	for _, sub := range []string{"config", "logs", "meta", "probes"} {
 		horus.CheckErr(
 			domovoi.EnsureDirExist(filepath.Join(base, sub), verbose),
 			horus.WithOp(op),
@@ -157,7 +158,7 @@ func preRunDream(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if v == nil {
-			return fmt.Errorf("workflow %q not found in %s", configName, cfgDir)
+			fmt.Errorf("workflow %q not found in %s", configName, cfgDir)
 		}
 
 		wf := v.Sub("workflows." + configName)
@@ -168,14 +169,12 @@ func preRunDream(cmd *cobra.Command, args []string) error {
 			cmd.Flags().Set("script", scriptPath)
 		}
 	}
-
-	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func runDream(cmd *cobra.Command, args []string) {
-	const op = "hypnos.dream.run"
+func runHibernate(cmd *cobra.Command, args []string) {
+	const op = "hypnos.hibernate.run"
 
 	// Manual flow: require all three flags if --config omitted
 	if !cmd.Flags().Changed("config") {
@@ -192,7 +191,7 @@ func runDream(cmd *cobra.Command, args []string) {
 			horus.WithMessage("provide a log basename"),
 		)
 		horus.CheckEmpty(
-			dreamName,
+			probeName,
 			"`--name` is required when --config is not provided",
 			horus.WithOp(op),
 			horus.WithMessage("provide an instance name"),
@@ -200,18 +199,18 @@ func runDream(cmd *cobra.Command, args []string) {
 	}
 
 	// Config flow: user can override --name / --log too,
-	// otherwise we supply reasonable defaults.
+	// otherwise we supply reasonable defaults
 	if cmd.Flags().Changed("config") {
 		if !cmd.Flags().Changed("name") {
-			dreamName = fmt.Sprintf("%s-%d", configName, time.Now().Unix())
+			probeName = fmt.Sprintf("%s-%d", configName, time.Now().Unix())
 		}
 		if !cmd.Flags().Changed("log") {
 			logName = configName
 		}
 	}
 
-	// At this point both scriptPath, dreamName & logName are guaranteed.
-	// Duration always comes from --duration.
+	// At this point both scriptPath, probeName & logName are guaranteed
+	// Duration always comes from --duration
 	horus.CheckEmpty(
 		scriptPath,
 		"`--script` is required",
@@ -222,20 +221,20 @@ func runDream(cmd *cobra.Command, args []string) {
 	home, err := domovoi.FindHome(verbose)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("finding home"))
 
-	meta := &dreamMeta{
-		Name:      dreamName,
-		Script:    scriptPath,
-		LogPath:   filepath.Join(home, ".hypnos", "logs", logName+".log"),
-		Duration:  duration,
-		InvokedAt: time.Now(),
+	meta := &probeMeta{
+		Name:       probeName,
+		Script:     scriptPath,
+		LogPath:    filepath.Join(home, ".hypnos", "logs", logName+".log"),
+		Duration:   duration,
+		Quiescence: time.Now(),
 	}
 
-	pid, err := spawnDream(meta)
+	pid, err := spawnProbe(meta)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("spawning worker"))
 	meta.PID = pid
 
 	// Persist metadata
-	metaFile := filepath.Join(home, ".hypnos", "meta", dreamName+".json")
+	metaFile := filepath.Join(home, ".hypnos", "meta", probeName+".json")
 	f, err := os.Create(metaFile)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("creating meta file"))
 	defer f.Close()
@@ -245,23 +244,24 @@ func runDream(cmd *cobra.Command, args []string) {
 		horus.WithMessage("encoding metadata"),
 	)
 
-	fmt.Printf("OK: spawned downtime %q with PID %d\n", dreamName, pid)
+	fmt.Printf("OK: spawned downtime %q with PID %d\n", probeName, pid)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func hiddenRunDream(cmd *cobra.Command, args []string) {
-	const op = "hypnos.dream.run"
+func hiddenRunHibernate(cmd *cobra.Command, args []string) {
+	const op = "hypnos.hibernate.run"
 
 	home, err := domovoi.FindHome(verbose)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("finding home"))
 	base := filepath.Join(home, ".hypnos")
 
 	// pid file
-	pidFile := filepath.Join(base, "dreams", runName+".pid")
+	pidFile := filepath.Join(base, "probes", runName+".pid")
 	pid := os.Getpid()
 	horus.CheckErr(
-		os.WriteFile(pidFile, []byte(fmt.Sprintf("%d\n", pid)), 0644),
+		os.WriteFile(pidFile,
+			[]byte(fmt.Sprintf("%d\n", pid)), 0644),
 		horus.WithOp(op),
 		horus.WithMessage("writing pid file"),
 	)
@@ -301,14 +301,14 @@ func hiddenRunDream(cmd *cobra.Command, args []string) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// spawnDream forks off a new "dream-run" worker process, piping its output into the log.
-func spawnDream(meta *dreamMeta) (int, error) {
+// spawnProbe forks off a new "hibernate-run" worker process, piping its output into the log
+func spawnProbe(meta *probeMeta) (int, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return 0, err
 	}
 	args := []string{
-		"dream-run",
+		"hibernate-run",
 		"--name", meta.Name,
 		"--log", strings.TrimSuffix(filepath.Base(meta.LogPath), ".log"),
 		"--script", meta.Script,
