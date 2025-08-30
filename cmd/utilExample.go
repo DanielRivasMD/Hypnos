@@ -56,7 +56,17 @@ var exampleRoot = formatExample(
 	[]string{"help"},
 )
 
-var exampleDream = formatExample(
+var exampleHibernate = formatExample(
+	"hypnos",
+	[]string{"help"},
+)
+
+var exampleScan = formatExample(
+	"hypnos",
+	[]string{"help"},
+)
+
+var exampleStasis = formatExample(
 	"hypnos",
 	[]string{"help"},
 )
