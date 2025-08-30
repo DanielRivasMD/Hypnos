@@ -36,12 +36,25 @@ var helpRoot = formatHelp(
 	"",
 )
 
-var helpDream = formatHelp(
+var helpHibernate = formatHelp(
 	"Daniel Rivas",
 	"danielrivasmd@gmail.com",
 	"Invoke a short-lived worker that waits, then runs your script\n"+
 		"and pops a notification. You can pass all flags manually, or supply --config\n"+
 		"to load a workflow from ~/.hypnos/config/*.toml.",
+)
+
+var helpScan = formatHelp(
+	"Daniel Rivas",
+	"danielrivasmd@gmail.com",
+	"",
+)
+
+var helpStatis = formatHelp(
+	"Daniel Rivas",
+	"danielrivasmd@gmail.com",
+	"Stops the named downtime instances\n"+
+		"It will send SIGTERM to each worker process, remove its PID file and metadata",
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
