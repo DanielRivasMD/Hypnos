@@ -38,7 +38,7 @@ import '.just/go.conf'
 ####################################################################################################
 
 # build for OSX
-[group('go')]
+[group('dev')]
 osx app=goapp:
   @echo "\n\033[1;33mBuilding\033[0;37m...\n=================================================="
   go build -v -o excalibur/{{app}}
@@ -46,7 +46,7 @@ osx app=goapp:
 ####################################################################################################
 
 # build for linux
-[group('go')]
+[group('dev')]
 linux app=goapp:
   @echo "\n\033[1;33mBuilding\033[0;37m...\n=================================================="
   env GOOS=linux GOARCH=amd64 go build -v -o excalibur/{{app}}
@@ -54,16 +54,21 @@ linux app=goapp:
 ####################################################################################################
 
 # install locally
-[group('go')]
+[group('dev')]
 install app=goapp exe=goexe:
   @echo "\n\033[1;33mInstalling\033[0;37m...\n=================================================="
   go install
-  mv -v "${HOME}/go/bin/{{app}}" "${HOME}/go/bin/{{exe}}"
+  @echo "\n\033[1;33mLinking\033[0;37m...\n=================================================="
+  @mv -v "${HOME}/go/bin/{{app}}" "${HOME}/go/bin/{{exe}}"
+  @echo "\n\033[1;33mCopying\033[0;37m...\n=================================================="
+  @if [ ! -d "${HOME}/{{dir}}" ]; then mkdir "${HOME}/{{dir}}"; fi
+  @if test -e "${HOME}/{{sh}}"; then rm -r "${HOME}/{{sh}}"; fi && echo "\033[1;33msh\033[0;37m" && cp -v -R "sh" "${HOME}/{{sh}}"
+  @if test -e "${HOME}/{{config}}"; then rm -r "${HOME}/{{config}}"; fi && echo "\033[1;33mconfig\033[0;37m" && cp -v -R "config" "${HOME}/{{config}}"
 
 ####################################################################################################
 
 # watch changes
-[group('go')]
+[group('dev')]
 watch:
   watchexec --clear --watch cmd -- 'just install'
 
