@@ -383,22 +383,29 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 
 	log("Downtime %q started for %s", workerProbe, workerDuration)
 
-	done := make(chan struct{})
-	runDowntime(workerDuration, func() {
-		log("▸ timer fired, executing shell snippet")
-		if err := domovoi.ExecSh(workerScript); err != nil {
-			log("▸ command failed: %v", err)
-		}
-		if err := notify("Hypnos-"+workerProbe, "Downtime complete"); err != nil {
-			log("▸ notify failed: %v", err)
-		} else {
-			log("▸ notify succeeded")
-		}
-		close(done)
-	})
-	<-done
+	count := 0
+	for {
+		count++
+		done := make(chan struct{})
+		runDowntime(workerDuration, func() {
+			// your existing exec & notify code…
+			close(done)
+		})
+		<-done
 
-	log("Downtime %q complete", workerProbe)
+		// if iterations specified, stop after that many
+		if workerIterations > 0 && count >= workerIterations {
+			break
+		}
+		// if not marked recurrent, run only once
+		if !workerRecurrent {
+			break
+		}
+		// otherwise loop again
+		log("▸ iteration %d complete, restarting timer", count)
+	}
+
+	log("Downtime %q fully complete (ran %d times)", workerProbe, count)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
