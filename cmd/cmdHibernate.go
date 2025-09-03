@@ -54,6 +54,8 @@ type probeMeta struct {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var (
+	configName string
+
 	// launcher flags
 	launcherConfig     string
 	launcherProbe      string
@@ -127,56 +129,149 @@ var hibernateWorkerCmd = &cobra.Command{
 
 func preRunHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.pre"
+	configName = args[0]
 
 	// Ensure our structure under ~/.hypnos
 	home, err := domovoi.FindHome(verbose)
 	if err != nil {
 		fmt.Errorf("cannot find home: %w", err)
 	}
-	base := filepath.Join(home, ".hypnos")
+	cfgDir := filepath.Join(home, ".hypnos")
+
 	for _, sub := range []string{"config", "logs", "meta", "probes"} {
 		horus.CheckErr(
-			domovoi.EnsureDirExist(filepath.Join(base, sub), verbose),
+			domovoi.EnsureDirExist(filepath.Join(cfgDir, sub), verbose),
 			horus.WithOp(op),
 			horus.WithMessage("creating "+sub),
 		)
 	}
 
-	// If user passed --config, load it and extract defaults
-	if cmd.Flags().Changed("config") {
-		cfgDir := filepath.Join(base, "config")
-		fis, err := domovoi.ReadDir(cfgDir, verbose)
-		horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading config dir"))
+	var (
+		foundV      *viper.Viper
+		cfgFileUsed string
+	)
+	fis, err := domovoi.ReadDir(cfgDir, verbose)
+	horus.CheckErr(
+		err,
+		horus.WithOp(op),
+		horus.WithCategory("env_error"),
+		horus.WithMessage("reading config dir"),
+	)
 
-		var v *viper.Viper
-		for _, fi := range fis {
-			if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".toml") {
-				continue
-			}
-			path := filepath.Join(cfgDir, fi.Name())
-			vv := viper.New()
-			vv.SetConfigFile(path)
-			if err := vv.ReadInConfig(); err != nil {
-				continue
-			}
-			if vv.IsSet("workflows." + launcherConfig + ".script") {
-				v = vv
-				break
-			}
+	for _, fi := range fis {
+		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".toml") {
+			continue
 		}
-		if v == nil {
-			fmt.Errorf("workflow %q not found in %s", launcherConfig, cfgDir)
+		path := filepath.Join(cfgDir, fi.Name())
+		v := viper.New()
+		v.SetConfigFile(path)
+		if err := v.ReadInConfig(); err != nil {
+			continue
 		}
-
-		wf := v.Sub("workflows." + launcherConfig)
-
-		// Only set defaults if user did not override
-		if !cmd.Flags().Changed("script") {
-			launcherScript = wf.GetString("script")
-			cmd.Flags().Set("script", launcherScript)
+		if v.IsSet("workflows." + configName) {
+			foundV = v
+			cfgFileUsed = path
+			break
 		}
 	}
+
+	if foundV == nil {
+		horus.CheckErr(
+			fmt.Errorf("workflow %q not found in %s/*.toml", configName, cfgDir),
+			horus.WithOp(op),
+			horus.WithMessage("could not find named workflow in config directory"),
+			horus.WithCategory("config_error"),
+		)
+	}
+
+	if launcherProbe == "" {
+		launcherProbe = configName
+		horus.CheckErr(
+			cmd.Flags().Set("probe", launcherProbe),
+			horus.WithOp(op),
+			horus.WithMessage("setting default --probe from config"),
+			horus.WithCategory("config_error"),
+		)
+	}
+
+	// TODO: patch variable
+	fmt.Println(cfgFileUsed)
+	// base := filepath.Base(cfgFileUsed)
+	// groupName = strings.TrimSuffix(base, filepath.Ext(base))
+	// horus.CheckErr(
+	// 	cmd.Flags().Set("group", groupName),
+	// 	horus.WithOp(op),
+	// 	horus.WithMessage("setting default --group from TOML filename"),
+	// 	horus.WithCategory("config_error"),
+	// )
+
+	wf := foundV.Sub("workflows." + configName)
+	bindFlag(cmd, "script", &launcherScript, wf)
+	bindFlag(cmd, "probe", &launcherProbe, wf)
+	bindFlag(cmd, "log", &launcherLog, wf)
+
+	// TODO: bind differnt types
+	// bindFlag(cmd, "duration", &launcherDuration, wf)
+	// bindFlag(cmd, "recurrent", &launcherRecurrent, wf)
+	// bindFlag(cmd, "iterations", &launcherIterations, wf)
+
+	// // helper to bind a flag only when unset
+	// bind := func(name string, set func(string) error, fromV func() string) {
+	// 	if !cmd.Flags().Changed(name) && wf.IsSet(name) {
+	// 		_ = set(fromV())
+	// 	}
+	// }
+	// bind("duration", cmd.Flags().Set, wf.GetString("duration"))
+	// bind("recurrent", cmd.Flags().Set, strconv.FormatBool(wf.GetBool("recurrent")))
+	// bind("iterations", cmd.Flags().Set, strconv.Itoa(wf.GetInt("iterations")))
+
+	if !cmd.Flags().Changed("log") {
+		launcherLog = configName
+		horus.CheckErr(
+			cmd.Flags().Set("log", launcherLog),
+			horus.WithOp(op),
+			horus.WithMessage("setting default --log from workflow key"),
+			horus.WithCategory("config_error"),
+		)
+	}
+
 }
+
+// 	// If user passed --config, load it and extract defaults
+// 	if cmd.Flags().Changed("config") {
+// 		cfgDir := filepath.Join(cfgDir, "config")
+// 		fis, err := domovoi.ReadDir(cfgDir, verbose)
+// 		horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading config dir"))
+
+// 		var v *viper.Viper
+// 		for _, fi := range fis {
+// 			if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".toml") {
+// 				continue
+// 			}
+// 			path := filepath.Join(cfgDir, fi.Name())
+// 			vv := viper.New()
+// 			vv.SetConfigFile(path)
+// 			if err := vv.ReadInConfig(); err != nil {
+// 				continue
+// 			}
+// 			if vv.IsSet("workflows." + launcherConfig + ".script") {
+// 				v = vv
+// 				break
+// 			}
+// 		}
+// 		if v == nil {
+// 			fmt.Errorf("workflow %q not found in %s", launcherConfig, cfgDir)
+// 		}
+
+// 		wf := v.Sub("workflows." + launcherConfig)
+
+// 		// Only set defaults if user did not override
+// 		if !cmd.Flags().Changed("script") {
+// 			launcherScript = wf.GetString("script")
+// 			cmd.Flags().Set("script", launcherScript)
+// 		}
+// 	}
+// }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
