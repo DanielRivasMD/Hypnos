@@ -38,12 +38,14 @@ func init() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO: rename command => `hypnos purge`
 var stasisCmd = &cobra.Command{
 	Use:     "stasis [name ...]",
 	Short:   "Place probes in statis",
 	Long:    helpStatis,
 	Example: exampleStasis,
 
+	// TODO: add completions for current probes
 	Args: cobra.MinimumNArgs(1),
 
 	Run: runStasis,

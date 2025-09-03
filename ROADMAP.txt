@@ -1,11 +1,19 @@
+- add a master control for working day => hypnos regular work - launch mail, take breaks, call people
 - set a timer for taking breaks
+- add purge command
+- add one-liner errors
 
 ==================================================
-cmd/cmdMail.go
+cmd/cmdHibernate.go
   line 38     TODO   rename script & command generic
   line 39     TODO   add feature to specify only launching notification
   line 40     TODO   add recurrent option
   line 41     TODO   allow `duration` or `time`
+cmd/cmdScan.go
+  line 69     TODO   double check location of active probes
+cmd/cmdStasis.go
+  line 41     TODO   rename command => `hypnos purge`
+  line 48     TODO   add completions for current probes
 cmd/root.go
-  line 27     TODO   add command to launch all jobs as recurrent, i.e., start session
+  line 42     TODO   add command to launch all jobs as recurrent, i.e., start session
 ==================================================
