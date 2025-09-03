@@ -57,7 +57,6 @@ var (
 	configName string
 
 	// launcher flags
-	launcherConfig     string
 	launcherProbe      string
 	launcherLog        string
 	launcherScript     string
@@ -80,7 +79,6 @@ func init() {
 	rootCmd.AddCommand(hibernateLauncherCmd)
 	rootCmd.AddCommand(hibernateWorkerCmd)
 
-	hibernateLauncherCmd.Flags().StringVarP(&launcherConfig, "config", "", "", "load workflow from ~/.hypnos/config/<name>.toml")
 	hibernateLauncherCmd.Flags().StringVarP(&launcherProbe, "probe", "", "", "instance name (manual or default: <config>-<ts>)")
 	hibernateLauncherCmd.Flags().StringVarP(&launcherLog, "log", "", "", "log file basename (no .log)")
 	hibernateLauncherCmd.Flags().StringVarP(&launcherScript, "script", "", "", "shell command to execute")
@@ -99,12 +97,9 @@ func init() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // hibernateLauncherCmd is the user-facing command. It either accepts all flags manually:
-//
 //	hypnos hibernate --duration 5s --log in-vivo --name in-vivo --script 'open -a Program'
-//
 // or it loads defaults from a TOML:
-//
-//	hypnos hibernate --config probe
+//	hypnos hibernate probe
 var hibernateLauncherCmd = &cobra.Command{
 	Use:     "hibernate",
 	Short:   "Send a probe to hibernation",
@@ -136,7 +131,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fmt.Errorf("cannot find home: %w", err)
 	}
-	cfgDir := filepath.Join(home, ".hypnos")
+	cfgDir := filepath.Join(home, ".hypnos", "config")
 
 	for _, sub := range []string{"config", "logs", "meta", "probes"} {
 		horus.CheckErr(
@@ -278,46 +273,23 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 func runHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.run"
 
-	// Manual flow: require all three flags if --config omitted
-	if !cmd.Flags().Changed("config") {
-		horus.CheckEmpty(
-			launcherScript,
-			"`--script` is required when --config is not provided",
-			horus.WithOp(op),
-			horus.WithMessage("provide a shell command to run"),
-		)
-		horus.CheckEmpty(
-			launcherLog,
-			"`--log` is required when --config is not provided",
-			horus.WithOp(op),
-			horus.WithMessage("provide a log basename"),
-		)
-		horus.CheckEmpty(
-			launcherProbe,
-			"`--name` is required when --config is not provided",
-			horus.WithOp(op),
-			horus.WithMessage("provide an instance name"),
-		)
-	}
-
-	// Config flow: user can override --name / --log too,
-	// otherwise we supply reasonable defaults
-	if cmd.Flags().Changed("config") {
-		if !cmd.Flags().Changed("name") {
-			launcherProbe = fmt.Sprintf("%s-%d", launcherConfig, time.Now().Unix())
-		}
-		if !cmd.Flags().Changed("log") {
-			launcherLog = launcherConfig
-		}
-	}
-
-	// At this point both scriptPath, probeName & logName are guaranteed
-	// Duration always comes from --duration
 	horus.CheckEmpty(
 		launcherScript,
-		"`--script` is required",
+		"`--script` is required when --config is not provided",
 		horus.WithOp(op),
-		horus.WithMessage("no command to execute"),
+		horus.WithMessage("provide a shell command to run"),
+	)
+	horus.CheckEmpty(
+		launcherLog,
+		"`--log` is required when --config is not provided",
+		horus.WithOp(op),
+		horus.WithMessage("provide a log basename"),
+	)
+	horus.CheckEmpty(
+		launcherProbe,
+		"`--name` is required when --config is not provided",
+		horus.WithOp(op),
+		horus.WithMessage("provide an instance name"),
 	)
 
 	home, err := domovoi.FindHome(verbose)
