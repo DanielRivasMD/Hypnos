@@ -21,6 +21,7 @@ package cmd
 import (
 	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,6 +49,31 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose diagnostics")
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// bindFlag copies a Viper value into a flag variable if the flag was not set
+func bindFlag(cmd *cobra.Command, flagName string, dest *string, cfg *viper.Viper) {
+	const op = "cli.bindFlag"
+
+	// Only override if flag not manually set and config has value
+	if !cmd.Flags().Changed(flagName) && cfg.IsSet(flagName) {
+		*dest = cfg.GetString(flagName)
+
+		if err := cmd.Flags().Set(flagName, *dest); err != nil {
+			horus.CheckErr(horus.NewCategorizedHerror(
+				op,
+				"cli_error",
+				"setting flag from config",
+				err,
+				map[string]any{
+					"flag":  flagName,
+					"value": *dest,
+				},
+			))
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
