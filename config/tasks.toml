@@ -1,13 +1,5 @@
-# ~/.hypnos/config/tasks.toml
-
 [workflows.mail]
-# opens the Mail app when the timer fires
 script = "open -a 'Mail'"
-
-[workflows.backup]
-# runs your backup-complete script
-script = "/usr/local/bin/backup_complete.sh"
-
-[workflows.focus]
-# speaks a message at the end of a focus session
-script = "say 'Focus session complete!'"
+duration = "5s"
+log = "mail"
+probe = "pmail"
