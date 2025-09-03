@@ -45,6 +45,8 @@ type probeMeta struct {
 	Script     string        `json:"script"`
 	LogPath    string        `json:"log_path"`
 	Duration   time.Duration `json:"duration"`
+	Recurrent  bool          `json:"recurrent"`
+	Iterations int           `json:"iterations"`
 	PID        int           `json:"pid"`
 	Quiescence time.Time     `json:"quiescence"`
 }
@@ -53,34 +55,43 @@ type probeMeta struct {
 
 var (
 	// launcher flags
-	configName string
-	probeName  string
-	logName    string
-	scriptPath string
-	duration   time.Duration
+	launcherConfig     string
+	launcherProbe      string
+	launcherLog        string
+	launcherScript     string
+	launcherDuration   time.Duration
+	launcherRecurrent  bool
+	launcherIterations int
 
 	// worker flags (hidden)
-	runName     string
-	runLog      string
-	runScript   string
-	runDuration time.Duration
+	workerProbe      string
+	workerLog        string
+	workerScript     string
+	workerDuration   time.Duration
+	workerRecurrent  bool
+	workerIterations int
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func init() {
-	hibernateLauncherCmd.Flags().StringVarP(&configName, "config", "c", "", "load workflow from ~/.hypnos/config/<name>.toml")
-	hibernateLauncherCmd.Flags().StringVarP(&probeName, "name", "n", "", "instance name (manual or default: <config>-<ts>)")
-	hibernateLauncherCmd.Flags().StringVarP(&logName, "log", "l", "", "log file basename (no .log)")
-	hibernateLauncherCmd.Flags().StringVarP(&scriptPath, "script", "s", "", "shell command to execute")
-	hibernateLauncherCmd.Flags().DurationVarP(&duration, "duration", "t", time.Hour, "how long to wait")
 	rootCmd.AddCommand(hibernateLauncherCmd)
-
-	hibernateWorkerCmd.Flags().StringVar(&runName, "name", "", "instance name")
-	hibernateWorkerCmd.Flags().StringVar(&runLog, "log", "", "log basename")
-	hibernateWorkerCmd.Flags().StringVar(&runScript, "script", "", "shell command to execute")
-	hibernateWorkerCmd.Flags().DurationVar(&runDuration, "duration", time.Hour, "how long to wait")
 	rootCmd.AddCommand(hibernateWorkerCmd)
+
+	hibernateLauncherCmd.Flags().StringVarP(&launcherConfig, "config", "", "", "load workflow from ~/.hypnos/config/<name>.toml")
+	hibernateLauncherCmd.Flags().StringVarP(&launcherProbe, "probe", "", "", "instance name (manual or default: <config>-<ts>)")
+	hibernateLauncherCmd.Flags().StringVarP(&launcherLog, "log", "", "", "log file basename (no .log)")
+	hibernateLauncherCmd.Flags().StringVarP(&launcherScript, "script", "", "", "shell command to execute")
+	hibernateLauncherCmd.Flags().DurationVarP(&launcherDuration, "duration", "", time.Hour, "how long to wait")
+	hibernateLauncherCmd.Flags().BoolVarP(&launcherRecurrent, "recurrent", "", false, "repeat timer indefinitely")
+	hibernateLauncherCmd.Flags().IntVarP(&launcherIterations, "iterations", "", 0, "run this many times (0=unlimited if --recurrent)")
+
+	hibernateWorkerCmd.Flags().StringVar(&workerProbe, "probe", "", "instance name")
+	hibernateWorkerCmd.Flags().StringVar(&workerLog, "log", "", "log basename")
+	hibernateWorkerCmd.Flags().StringVar(&workerScript, "script", "", "shell command to execute")
+	hibernateWorkerCmd.Flags().DurationVar(&workerDuration, "duration", time.Hour, "how long to wait")
+	hibernateWorkerCmd.Flags().BoolVar(&workerRecurrent, "recurrent", false, "")
+	hibernateWorkerCmd.Flags().IntVar(&workerIterations, "iterations", 0, "")
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -94,13 +105,12 @@ func init() {
 //	hypnos hibernate --config probe
 var hibernateLauncherCmd = &cobra.Command{
 	Use:     "hibernate",
-	Short:   "Invoke a managed downtime timer",
+	Short:   "Send a probe to hibernation",
 	Long:    helpHibernate,
 	Example: exampleHibernate,
 
 	PreRun: preRunHibernate,
-
-	Run: runHibernate,
+	Run:    runHibernate,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -149,21 +159,21 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 			if err := vv.ReadInConfig(); err != nil {
 				continue
 			}
-			if vv.IsSet("workflows." + configName + ".script") {
+			if vv.IsSet("workflows." + launcherConfig + ".script") {
 				v = vv
 				break
 			}
 		}
 		if v == nil {
-			fmt.Errorf("workflow %q not found in %s", configName, cfgDir)
+			fmt.Errorf("workflow %q not found in %s", launcherConfig, cfgDir)
 		}
 
-		wf := v.Sub("workflows." + configName)
+		wf := v.Sub("workflows." + launcherConfig)
 
 		// Only set defaults if user did not override
 		if !cmd.Flags().Changed("script") {
-			scriptPath = wf.GetString("script")
-			cmd.Flags().Set("script", scriptPath)
+			launcherScript = wf.GetString("script")
+			cmd.Flags().Set("script", launcherScript)
 		}
 	}
 }
@@ -176,19 +186,19 @@ func runHibernate(cmd *cobra.Command, args []string) {
 	// Manual flow: require all three flags if --config omitted
 	if !cmd.Flags().Changed("config") {
 		horus.CheckEmpty(
-			scriptPath,
+			launcherScript,
 			"`--script` is required when --config is not provided",
 			horus.WithOp(op),
 			horus.WithMessage("provide a shell command to run"),
 		)
 		horus.CheckEmpty(
-			logName,
+			launcherLog,
 			"`--log` is required when --config is not provided",
 			horus.WithOp(op),
 			horus.WithMessage("provide a log basename"),
 		)
 		horus.CheckEmpty(
-			probeName,
+			launcherProbe,
 			"`--name` is required when --config is not provided",
 			horus.WithOp(op),
 			horus.WithMessage("provide an instance name"),
@@ -199,17 +209,17 @@ func runHibernate(cmd *cobra.Command, args []string) {
 	// otherwise we supply reasonable defaults
 	if cmd.Flags().Changed("config") {
 		if !cmd.Flags().Changed("name") {
-			probeName = fmt.Sprintf("%s-%d", configName, time.Now().Unix())
+			launcherProbe = fmt.Sprintf("%s-%d", launcherConfig, time.Now().Unix())
 		}
 		if !cmd.Flags().Changed("log") {
-			logName = configName
+			launcherLog = launcherConfig
 		}
 	}
 
 	// At this point both scriptPath, probeName & logName are guaranteed
 	// Duration always comes from --duration
 	horus.CheckEmpty(
-		scriptPath,
+		launcherScript,
 		"`--script` is required",
 		horus.WithOp(op),
 		horus.WithMessage("no command to execute"),
@@ -219,10 +229,10 @@ func runHibernate(cmd *cobra.Command, args []string) {
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("finding home"))
 
 	meta := &probeMeta{
-		Name:       probeName,
-		Script:     scriptPath,
-		LogPath:    filepath.Join(home, ".hypnos", "logs", logName+".log"),
-		Duration:   duration,
+		Name:       launcherProbe,
+		Script:     launcherScript,
+		LogPath:    filepath.Join(home, ".hypnos", "logs", launcherLog+".log"),
+		Duration:   launcherDuration,
 		Quiescence: time.Now(),
 	}
 
@@ -231,7 +241,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 	meta.PID = pid
 
 	// Persist metadata
-	metaFile := filepath.Join(home, ".hypnos", "meta", probeName+".json")
+	metaFile := filepath.Join(home, ".hypnos", "meta", launcherProbe+".json")
 	f, err := os.Create(metaFile)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("creating meta file"))
 	defer f.Close()
@@ -241,7 +251,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 		horus.WithMessage("encoding metadata"),
 	)
 
-	fmt.Printf("OK: spawned downtime %q with PID %d\n", probeName, pid)
+	fmt.Printf("OK: spawned downtime %q with PID %d\n", launcherProbe, pid)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -254,7 +264,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	base := filepath.Join(home, ".hypnos")
 
 	// pid file
-	pidFile := filepath.Join(base, "probes", runName+".pid")
+	pidFile := filepath.Join(base, "probes", workerProbe+".pid")
 	pid := os.Getpid()
 	horus.CheckErr(
 		os.WriteFile(pidFile,
@@ -265,7 +275,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	defer os.Remove(pidFile)
 
 	// open log
-	logFile := filepath.Join(base, "logs", runLog+".log")
+	logFile := filepath.Join(base, "logs", workerLog+".log")
 	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("opening log file"))
 	defer f.Close()
@@ -276,15 +286,15 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 		fmt.Fprintln(f, line)
 	}
 
-	log("Downtime %q started for %s", runName, runDuration)
+	log("Downtime %q started for %s", workerProbe, workerDuration)
 
 	done := make(chan struct{})
-	runDowntime(runDuration, func() {
+	runDowntime(workerDuration, func() {
 		log("▸ timer fired, executing shell snippet")
-		if err := domovoi.ExecSh(runScript); err != nil {
+		if err := domovoi.ExecSh(workerScript); err != nil {
 			log("▸ command failed: %v", err)
 		}
-		if err := notify("Hypnos-"+runName, "Downtime complete"); err != nil {
+		if err := notify("Hypnos-"+workerProbe, "Downtime complete"); err != nil {
 			log("▸ notify failed: %v", err)
 		} else {
 			log("▸ notify succeeded")
@@ -293,7 +303,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	})
 	<-done
 
-	log("Downtime %q complete", runName)
+	log("Downtime %q complete", workerProbe)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
