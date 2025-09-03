@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,7 +37,6 @@ import (
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // TODO: add feature to specify only launching notification
-// TODO: add recurrent option
 // TODO: allow `duration` or `time`
 
 // probeMeta holds persisted state for each probe invocation
@@ -405,10 +405,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 
 // spawnProbe forks off a new "hibernate-run" worker process, piping its output into the log
 func spawnProbe(meta *probeMeta) (int, error) {
-	exe, err := os.Executable()
-	if err != nil {
-		return 0, err
-	}
+	exe, _ := os.Executable()
 	args := []string{
 		"hibernate-run",
 		"--name", meta.Name,
@@ -416,17 +413,22 @@ func spawnProbe(meta *probeMeta) (int, error) {
 		"--script", meta.Script,
 		"--duration", meta.Duration.String(),
 	}
+	if meta.Recurrent {
+		args = append(args, "--recurrent")
+	}
+	if meta.Iterations > 0 {
+		args = append(args, "--iterations", strconv.Itoa(meta.Iterations))
+	}
+
 	f, err := os.OpenFile(meta.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return 0, err
 	}
+
 	cmd := exec.Command(exe, args...)
 	cmd.Stdout = f
 	cmd.Stderr = f
-	if err := cmd.Start(); err != nil {
-		f.Close()
-		return 0, err
-	}
+	_ = cmd.Start()
 	return cmd.Process.Pid, nil
 }
 
