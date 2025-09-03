@@ -35,7 +35,6 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: rename script & command generic
 // TODO: add feature to specify only launching notification
 // TODO: add recurrent option
 // TODO: allow `duration` or `time`
@@ -70,32 +69,30 @@ var (
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func init() {
-	// user-facing flags
-	hibernateCmd.Flags().StringVarP(&configName, "config", "c", "", "load workflow from ~/.hypnos/config/<name>.toml")
-	hibernateCmd.Flags().StringVarP(&probeName, "name", "n", "", "instance name (manual or default: <config>-<ts>)")
-	hibernateCmd.Flags().StringVarP(&logName, "log", "l", "", "log file basename (no .log)")
-	hibernateCmd.Flags().StringVarP(&scriptPath, "script", "s", "", "shell command to execute")
-	hibernateCmd.Flags().DurationVarP(&duration, "duration", "t", time.Hour, "how long to wait")
-	rootCmd.AddCommand(hibernateCmd)
+	hibernateLauncherCmd.Flags().StringVarP(&configName, "config", "c", "", "load workflow from ~/.hypnos/config/<name>.toml")
+	hibernateLauncherCmd.Flags().StringVarP(&probeName, "name", "n", "", "instance name (manual or default: <config>-<ts>)")
+	hibernateLauncherCmd.Flags().StringVarP(&logName, "log", "l", "", "log file basename (no .log)")
+	hibernateLauncherCmd.Flags().StringVarP(&scriptPath, "script", "s", "", "shell command to execute")
+	hibernateLauncherCmd.Flags().DurationVarP(&duration, "duration", "t", time.Hour, "how long to wait")
+	rootCmd.AddCommand(hibernateLauncherCmd)
 
-	// hidden worker flags
-	hibernateRunCmd.Flags().StringVar(&runName, "name", "", "instance name")
-	hibernateRunCmd.Flags().StringVar(&runLog, "log", "", "log basename")
-	hibernateRunCmd.Flags().StringVar(&runScript, "script", "", "shell command to execute")
-	hibernateRunCmd.Flags().DurationVar(&runDuration, "duration", time.Hour, "how long to wait")
-	rootCmd.AddCommand(hibernateRunCmd)
+	hibernateWorkerCmd.Flags().StringVar(&runName, "name", "", "instance name")
+	hibernateWorkerCmd.Flags().StringVar(&runLog, "log", "", "log basename")
+	hibernateWorkerCmd.Flags().StringVar(&runScript, "script", "", "shell command to execute")
+	hibernateWorkerCmd.Flags().DurationVar(&runDuration, "duration", time.Hour, "how long to wait")
+	rootCmd.AddCommand(hibernateWorkerCmd)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// hibernateCmd is the user-facing command. It either accepts all flags manually:
+// hibernateLauncherCmd is the user-facing command. It either accepts all flags manually:
 //
 //	hypnos hibernate --duration 5s --log in-vivo --name in-vivo --script 'open -a Program'
 //
 // or it loads defaults from a TOML:
 //
 //	hypnos hibernate --config probe
-var hibernateCmd = &cobra.Command{
+var hibernateLauncherCmd = &cobra.Command{
 	Use:     "hibernate",
 	Short:   "Invoke a managed downtime timer",
 	Long:    helpHibernate,
@@ -108,9 +105,9 @@ var hibernateCmd = &cobra.Command{
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// hibernateRunCmd is the hidden worker
+// hibernateWorkerCmd is the hidden worker
 // sleeps, execs your command, sends notification, then exits
-var hibernateRunCmd = &cobra.Command{
+var hibernateWorkerCmd = &cobra.Command{
 	Use:    "hibernate-run",
 	Hidden: true,
 	Run:    hiddenRunHibernate,
