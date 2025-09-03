@@ -54,7 +54,7 @@ func init() {
 
 var scanCmd = &cobra.Command{
 	Use:     "scan",
-	Short:   "List all downtime timers & their state",
+	Short:   "List probes & their state",
 	Long:    helpScan,
 	Example: exampleScan,
 
@@ -77,7 +77,7 @@ func runScan(cmd *cobra.Command, args []string) {
 		horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading meta directory"))
 	}
 	if len(fis) == 0 {
-		fmt.Println("no downtimes found in ~/.hypnos/meta")
+		fmt.Println("no probes hibernating in ~/.hypnos/meta")
 		return
 	}
 
