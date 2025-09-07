@@ -19,9 +19,16 @@ package cmd
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
+	"fmt"
+	"path/filepath"
+	"strconv"
+	"time"
+
+	"github.com/DanielRivasMD/domovoi"
 	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/ttacon/chalk"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -45,34 +52,96 @@ var (
 	verbose bool
 )
 
+var (
+	home      string
+	hypnosDir string
+	configDir string
+	logDir    string
+	probeDir  string
+)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose diagnostics")
+	cobra.OnInitialize(initConfigPaths)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// bindFlag copies a Viper value into a flag variable if the flag was not set
-func bindFlag(cmd *cobra.Command, flagName string, dest *string, cfg *viper.Viper) {
+// probeMeta holds persisted state for each probe invocation
+type probeMeta struct {
+	Name       string        `json:"name"`
+	Script     string        `json:"script"`
+	LogPath    string        `json:"log_path"`
+	Duration   time.Duration `json:"duration"`
+	Recurrent  bool          `json:"recurrent"`
+	Iterations int           `json:"iterations"`
+	PID        int           `json:"pid"`
+	Quiescence time.Time     `json:"quiescence"`
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func initConfigPaths() {
+	var err error
+	home, err = domovoi.FindHome(verbose)
+	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
+	hypnosDir = filepath.Join(home, ".lilith")
+	configDir = filepath.Join(hypnosDir, "config")
+	logDir = filepath.Join(hypnosDir, "logs")
+	probeDir = filepath.Join(hypnosDir, "probe")
+}
+
+func errorFmt(er string) string {
+	return chalk.Bold.TextStyle(chalk.Red.Color(er))
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 	const op = "cli.bindFlag"
+	flags := cmd.Flags()
 
-	// Only override if flag not manually set and config has value
-	if !cmd.Flags().Changed(flagName) && cfg.IsSet(flagName) {
-		*dest = cfg.GetString(flagName)
+	// only bind if not manually set & config has key
+	if flags.Changed(flagName) || !cfg.IsSet(flagName) {
+		return
+	}
 
-		if err := cmd.Flags().Set(flagName, *dest); err != nil {
-			horus.CheckErr(horus.NewCategorizedHerror(
+	f := flags.Lookup(flagName)
+	if f == nil {
+		// no such flag
+		return
+	}
+
+	// build string representation based on flag declared type
+	var raw string
+	switch f.Value.Type() {
+	case "string":
+		raw = cfg.GetString(flagName)
+	case "int":
+		raw = strconv.Itoa(cfg.GetInt(flagName))
+	case "bool":
+		raw = strconv.FormatBool(cfg.GetBool(flagName))
+	default:
+		// fallback: just use the string getter
+		raw = cfg.GetString(flagName)
+	}
+
+	// set flag value
+	if err := flags.Set(flagName, raw); err != nil {
+		horus.CheckErr(
+			horus.NewCategorizedHerror(
 				op,
-				"cli_error",
-				"setting flag from config",
+				"config_error",
+				fmt.Sprintf("setting %q from config", flagName),
 				err,
 				map[string]any{
 					"flag":  flagName,
-					"value": *dest,
+					"value": raw,
 				},
-			))
-		}
+			),
+		)
 	}
 }
 
