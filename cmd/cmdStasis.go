@@ -61,7 +61,7 @@ func runStasis(cmd *cobra.Command, args []string) {
 
 	base := filepath.Join(home, ".hypnos")
 	metaDir := filepath.Join(base, "meta")
-	pidDir := filepath.Join(base, "daemons")
+	pidDir := filepath.Join(base, "probe")
 
 	for _, name := range args {
 		metaFile := filepath.Join(metaDir, name+".json")

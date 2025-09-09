@@ -26,7 +26,7 @@ hypnos hibernate --config deep-focus
 ```
 On invocation, it:
 
-Creates `~/.hypnos/{config,logs,meta,probes}`
+Creates `~/.hypnos/{config,logs,meta,probe}`
 
 Reads any `config/<name>.toml` for a `[workflows.<name>]` script
 

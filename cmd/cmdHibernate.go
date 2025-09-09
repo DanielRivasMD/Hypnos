@@ -309,7 +309,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	base := filepath.Join(home, ".hypnos")
 
 	// pid file
-	pidFile := filepath.Join(base, "probes", worker.probe+".pid")
+	pidFile := filepath.Join(base, "probe", worker.probe+".pid")
 	pid := os.Getpid()
 	horus.CheckErr(
 		os.WriteFile(pidFile,
