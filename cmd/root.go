@@ -47,20 +47,22 @@ func Execute() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: add command to launch all jobs as recurrent, i.e., start session
 var (
-	verbose bool
+	dirs configDirs
 )
 
-var (
-	home      string
-	hypnosDir string
-	configDir string
-	logDir    string
-	probeDir  string
-)
+type configDirs struct {
+	home   string
+	hypnos string
+	config string
+	log    string
+	probe  string
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// TODO: add command to launch all jobs as recurrent, i.e., start session
+var verbose bool
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose diagnostics")
@@ -85,12 +87,12 @@ type probeMeta struct {
 
 func initConfigPaths() {
 	var err error
-	home, err = domovoi.FindHome(verbose)
+	dirs.home, err = domovoi.FindHome(verbose)
 	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
-	hypnosDir = filepath.Join(home, ".lilith")
-	configDir = filepath.Join(hypnosDir, "config")
-	logDir = filepath.Join(hypnosDir, "logs")
-	probeDir = filepath.Join(hypnosDir, "probe")
+	dirs.hypnos = filepath.Join(dirs.home, ".hypnos")
+	dirs.config = filepath.Join(dirs.hypnos, "config")
+	dirs.log = filepath.Join(dirs.hypnos, "logs")
+	dirs.probe = filepath.Join(dirs.hypnos, "probe")
 }
 
 func errorFmt(er string) string {
