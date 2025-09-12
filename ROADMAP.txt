@@ -5,15 +5,16 @@
 
 ==================================================
 cmd/cmdHibernate.go
-  line 38     TODO   rename script & command generic
-  line 39     TODO   add feature to specify only launching notification
-  line 40     TODO   add recurrent option
-  line 41     TODO   allow `duration` or `time`
+  line 41     TODO   add feature to specify only launching notification
+  line 42     TODO   allow `duration` or `time`
+  line 157    TODO   bind differnt types
+  line 268    TODO   exec & notify code
 cmd/cmdScan.go
-  line 69     TODO   double check location of active probes
+  line 68     TODO   double check location of active probes
 cmd/cmdStasis.go
-  line 41     TODO   rename command => `hypnos purge`
-  line 48     TODO   add completions for current probes
+  line 39     TODO   rename command => `hypnos purge`
+  line 46     TODO   add completions for current probes
+  line 84     TODO   remove the log as well
 cmd/root.go
-  line 42     TODO   add command to launch all jobs as recurrent, i.e., start session
+  line 64     TODO   add command to launch all jobs as recurrent, i.e., start session
 ==================================================

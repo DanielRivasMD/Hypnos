@@ -81,6 +81,7 @@ func runStasis(cmd *cobra.Command, args []string) {
 			fmt.Printf("OK: sent SIGTERM to PID %d for %q\n", m.PID, name)
 		}
 
+		// TODO: remove the log as well
 		// remove metadata file
 		if err := os.Remove(metaFile); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: cannot remove metadata %s (%v)\n", metaFile, err)
