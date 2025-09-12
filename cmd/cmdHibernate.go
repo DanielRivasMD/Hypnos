@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,6 +33,7 @@ import (
 	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/ttacon/chalk"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,16 +64,16 @@ var hibernateWorkerCmd = &cobra.Command{
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var (
-	configName string
-
-	launcher configHibernate
-	worker   configHibernate
+	launcher configPaths
+	worker   configPaths
 )
 
-type configHibernate struct {
+type configPaths struct {
+	config     string
 	probe      string
-	log        string
 	script     string
+	log        string
+	group      string
 	duration   time.Duration
 	recurrent  bool
 	iterations int
@@ -102,149 +104,111 @@ func init() {
 
 func preRunHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.pre"
-	configName = args[0]
 
-	// Ensure our structure under ~/.hypnos
-	home, err := domovoi.FindHome(verbose)
-	if err != nil {
-		fmt.Errorf("cannot find home: %w", err)
-	}
-	cfgDir := filepath.Join(home, ".hypnos")
-
-	for _, sub := range []string{"config", "logs", "meta", "probes"} {
-		horus.CheckErr(
-			domovoi.CreateDir(filepath.Join(cfgDir, sub), verbose),
-			horus.WithOp(op),
-			horus.WithMessage("creating "+sub),
-		)
-	}
-
-	var (
-		foundV      *viper.Viper
-		cfgFileUsed string
-	)
-	fis, err := domovoi.ReadDir(cfgDir, verbose)
-	horus.CheckErr(
-		err,
-		horus.WithOp(op),
-		horus.WithCategory("env_error"),
-		horus.WithMessage("reading config dir"),
-	)
-
-	for _, fi := range fis {
-		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".toml") {
-			continue
+	if len(args) == 1 {
+		// CONFIG MODE: pull everything from TOML
+		if verbose {
+			fmt.Println("Running on Config mode...")
 		}
-		path := filepath.Join(cfgDir, fi.Name())
-		v := viper.New()
-		v.SetConfigFile(path)
-		if err := v.ReadInConfig(); err != nil {
-			continue
+
+		// declare workflow
+		launcher.config = args[0]
+
+		// discover matching workflow file
+		files, err := domovoi.ReadDir(dirs.config, verbose)
+		horus.CheckErr(err, horus.WithOp(op), horus.WithCategory("env_error"), horus.WithMessage("reading config dir"))
+		var foundV *viper.Viper
+		var configFileUsed string
+		for _, f := range files {
+			if f.IsDir() || !strings.HasSuffix(f.Name(), ".toml") {
+				continue
+			}
+			path := filepath.Join(dirs.config, f.Name())
+			v := viper.New()
+			v.SetConfigFile(path)
+			if err := v.ReadInConfig(); err != nil {
+				continue
+			}
+			if v.IsSet("workflows." + launcher.config) {
+				foundV = v
+				configFileUsed = path
+				break
+			}
 		}
-		if v.IsSet("workflows." + configName) {
-			foundV = v
-			cfgFileUsed = path
-			break
+		if foundV == nil {
+			horus.CheckErr(
+				errors.New(""),
+				horus.WithMessage(fmt.Sprintf("workflow %s not found", launcher.config)),
+				horus.WithFormatter(func(he *horus.Herror) string { return onelineErr(he.Message) }),
+			)
 		}
-	}
 
-	if foundV == nil {
-		horus.CheckErr(
-			fmt.Errorf("workflow %q not found in %s/*.toml", configName, cfgDir),
-			horus.WithOp(op),
-			horus.WithMessage("could not find named workflow in config directory"),
-			horus.WithCategory("config_error"),
+		// defaults
+		if launcher.probe == "" {
+			launcher.probe = launcher.config
+			horus.CheckErr(cmd.Flags().Set("probe", launcher.probe), horus.WithOp(op), horus.WithMessage("setting default --probe"))
+		}
+
+		wf := foundV.Sub("workflows." + launcher.config)
+		bindFlag(cmd, "script", wf)
+		bindFlag(cmd, "probe", wf)
+		bindFlag(cmd, "log", wf)
+
+		// TODO: bind differnt types
+		bindFlag(cmd, "duration", wf)
+		bindFlag(cmd, "recurrent", wf)
+		bindFlag(cmd, "iterations", wf)
+
+		// group default
+		if !cmd.Flags().Changed("group") {
+			base := filepath.Base(configFileUsed)
+			launcher.group = strings.TrimSuffix(base, filepath.Ext(base))
+			horus.CheckErr(cmd.Flags().Set("group", launcher.group), horus.WithOp(op), horus.WithMessage("setting default --group"))
+		}
+
+		// log default
+		if !cmd.Flags().Changed("log") {
+			launcher.log = launcher.config
+			horus.CheckErr(cmd.Flags().Set("log", launcher.log), horus.WithOp(op), horus.WithMessage("setting default --log"))
+		}
+
+	} else {
+
+		// MANUAL MODE: require explicit flags
+		if verbose {
+			fmt.Println("Running on Manual mode...")
+		}
+
+		horus.CheckEmpty(
+			launcher.probe,
+			"",
+			horus.WithMessage("`--probe` is required"),
+			horus.WithExitCode(2),
+			horus.WithFormatter(func(he *horus.Herror) string { return chalk.Red.Color(he.Message) }),
+		)
+		horus.CheckEmpty(
+			launcher.script,
+			"",
+			horus.WithMessage("`--script` is required"),
+			horus.WithExitCode(2),
+			horus.WithFormatter(func(he *horus.Herror) string { return chalk.Red.Color(he.Message) }),
+		)
+		horus.CheckEmpty(
+			launcher.log,
+			"",
+			horus.WithMessage("`--log` is required"),
+			horus.WithExitCode(2),
+			horus.WithFormatter(func(he *horus.Herror) string { return chalk.Red.Color(he.Message) }),
+		)
+		horus.CheckEmpty(
+			launcher.duration.String(),
+			"",
+			horus.WithMessage("`--duration` is required"),
+			horus.WithExitCode(2),
+			horus.WithFormatter(func(he *horus.Herror) string { return chalk.Red.Color(he.Message) }),
 		)
 	}
-
-	if launcher.probe == "" {
-		launcher.probe = configName
-		horus.CheckErr(
-			cmd.Flags().Set("probe", launcher.probe),
-			horus.WithOp(op),
-			horus.WithMessage("setting default --probe from config"),
-			horus.WithCategory("config_error"),
-		)
-	}
-
-	// TODO: patch variable
-	fmt.Println(cfgFileUsed)
-	// base := filepath.Base(cfgFileUsed)
-	// groupName = strings.TrimSuffix(base, filepath.Ext(base))
-	// horus.CheckErr(
-	// 	cmd.Flags().Set("group", groupName),
-	// 	horus.WithOp(op),
-	// 	horus.WithMessage("setting default --group from TOML filename"),
-	// 	horus.WithCategory("config_error"),
-	// )
-
-	wf := foundV.Sub("workflows." + configName)
-	bindFlag(cmd, "script", wf)
-	bindFlag(cmd, "probe", wf)
-	bindFlag(cmd, "log", wf)
-
-	// TODO: bind differnt types
-	bindFlag(cmd, "duration", wf)
-	bindFlag(cmd, "recurrent", wf)
-	bindFlag(cmd, "iterations", wf)
-
-	// // helper to bind a flag only when unset
-	// bind := func(name string, set func(string) error, fromV func() string) {
-	// 	if !cmd.Flags().Changed(name) && wf.IsSet(name) {
-	// 		_ = set(fromV())
-	// 	}
-	// }
-	// bind("duration", cmd.Flags().Set, wf.GetString("duration"))
-	// bind("recurrent", cmd.Flags().Set, strconv.FormatBool(wf.GetBool("recurrent")))
-	// bind("iterations", cmd.Flags().Set, strconv.Itoa(wf.GetInt("iterations")))
-
-	if !cmd.Flags().Changed("log") {
-		launcher.log = configName
-		horus.CheckErr(
-			cmd.Flags().Set("log", launcher.log),
-			horus.WithOp(op),
-			horus.WithMessage("setting default --log from workflow key"),
-			horus.WithCategory("config_error"),
-		)
-	}
-
 }
-
-// 	// If user passed --config, load it and extract defaults
-// 	if cmd.Flags().Changed("config") {
-// 		cfgDir := filepath.Join(cfgDir, "config")
-// 		fis, err := domovoi.ReadDir(cfgDir, verbose)
-// 		horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading config dir"))
-
-// 		var v *viper.Viper
-// 		for _, fi := range fis {
-// 			if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".toml") {
-// 				continue
-// 			}
-// 			path := filepath.Join(cfgDir, fi.Name())
-// 			vv := viper.New()
-// 			vv.SetConfigFile(path)
-// 			if err := vv.ReadInConfig(); err != nil {
-// 				continue
-// 			}
-// 			if vv.IsSet("workflows." + launcherConfig + ".script") {
-// 				v = vv
-// 				break
-// 			}
-// 		}
-// 		if v == nil {
-// 			fmt.Errorf("workflow %q not found in %s", launcherConfig, cfgDir)
-// 		}
-
-// 		wf := v.Sub("workflows." + launcherConfig)
-
-// 		// Only set defaults if user did not override
-// 		if !cmd.Flags().Changed("script") {
-// 			launcher.script = wf.GetString("script")
-// 			cmd.Flags().Set("script", launcher.script)
-// 		}
-// 	}
-// }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
