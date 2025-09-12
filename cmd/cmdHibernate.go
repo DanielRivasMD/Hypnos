@@ -63,6 +63,7 @@ var hibernateWorkerCmd = &cobra.Command{
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO: review struct composition
 var (
 	launcher configPaths
 	worker   configPaths
@@ -213,7 +214,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func runHibernate(cmd *cobra.Command, args []string) {
-	const op = "hypnos.hibernate.run"
+	const op = "hypnos.hibernate.launch"
 
 	meta := &probeMeta{
 		Probe:      launcher.probe,
@@ -244,7 +245,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func hiddenRunHibernate(cmd *cobra.Command, args []string) {
-	const op = "hypnos.hibernate.run"
+	const op = "hypnos.hibernate.work"
 
 	// open log
 	logFile := filepath.Join(dirs.log, worker.log+".log")
@@ -263,9 +264,15 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	count := 0
 	for {
 		count++
+		// schedule and wait
 		done := make(chan struct{})
 		runDowntime(worker.duration, func() {
-			// TODO: exec & notify code
+			log("▸ timer fired, sending notification")
+			if err := notify("Hypnos-"+worker.probe, "Downtime complete"); err != nil {
+				log("▸ notify failed: %v", err)
+			} else {
+				log("▸ notify succeeded")
+			}
 			close(done)
 		})
 		<-done
