@@ -246,18 +246,6 @@ func runHibernate(cmd *cobra.Command, args []string) {
 func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.run"
 
-	// pid file
-	// BUG: there is no pid file here. is this temp?
-	pidFile := filepath.Join(dirs.probe, worker.probe+".pid")
-	pid := os.Getpid()
-	horus.CheckErr(
-		os.WriteFile(pidFile,
-			[]byte(fmt.Sprintf("%d\n", pid)), 0644),
-		horus.WithOp(op),
-		horus.WithMessage("writing pid file"),
-	)
-	defer os.Remove(pidFile)
-
 	// open log
 	logFile := filepath.Join(dirs.log, worker.log+".log")
 	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
@@ -277,7 +265,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 		count++
 		done := make(chan struct{})
 		runDowntime(worker.duration, func() {
-			// your existing exec & notify code…
+			// TODO: exec & notify code
 			close(done)
 		})
 		<-done

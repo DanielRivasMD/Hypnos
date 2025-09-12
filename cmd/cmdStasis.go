@@ -81,12 +81,6 @@ func runStasis(cmd *cobra.Command, args []string) {
 			fmt.Printf("OK: sent SIGTERM to PID %d for %q\n", m.PID, name)
 		}
 
-		// // remove pid file
-		// pidFile := filepath.Join(pidDir, name+".pid")
-		// if err := os.Remove(pidFile); err != nil && !os.IsNotExist(err) {
-		// 	fmt.Fprintf(os.Stderr, "warning: cannot remove pid file %s (%v)\n", pidFile, err)
-		// }
-
 		// remove metadata file
 		if err := os.Remove(metaFile); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: cannot remove metadata %s (%v)\n", metaFile, err)
