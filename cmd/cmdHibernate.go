@@ -113,7 +113,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 
 	for _, sub := range []string{"config", "logs", "meta", "probes"} {
 		horus.CheckErr(
-			domovoi.EnsureDirExist(filepath.Join(cfgDir, sub), verbose),
+			domovoi.CreateDir(filepath.Join(cfgDir, sub), verbose),
 			horus.WithOp(op),
 			horus.WithMessage("creating "+sub),
 		)
