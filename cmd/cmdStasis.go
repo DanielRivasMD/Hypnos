@@ -25,8 +25,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/DanielRivasMD/domovoi"
-	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
 )
 
@@ -56,15 +54,8 @@ var stasisCmd = &cobra.Command{
 func runStasis(cmd *cobra.Command, args []string) {
 	const op = "hypnos.stasis"
 
-	home, err := domovoi.FindHome(verbose)
-	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("finding home"))
-
-	base := filepath.Join(home, ".hypnos")
-	metaDir := filepath.Join(base, "meta")
-	pidDir := filepath.Join(base, "probe")
-
 	for _, name := range args {
-		metaFile := filepath.Join(metaDir, name+".json")
+		metaFile := filepath.Join(dirs.probe, name+".json")
 		data, err := os.ReadFile(metaFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: metadata for %q not found (%v)\n", name, err)
@@ -90,11 +81,11 @@ func runStasis(cmd *cobra.Command, args []string) {
 			fmt.Printf("OK: sent SIGTERM to PID %d for %q\n", m.PID, name)
 		}
 
-		// remove pid file
-		pidFile := filepath.Join(pidDir, name+".pid")
-		if err := os.Remove(pidFile); err != nil && !os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "warning: cannot remove pid file %s (%v)\n", pidFile, err)
-		}
+		// // remove pid file
+		// pidFile := filepath.Join(pidDir, name+".pid")
+		// if err := os.Remove(pidFile); err != nil && !os.IsNotExist(err) {
+		// 	fmt.Fprintf(os.Stderr, "warning: cannot remove pid file %s (%v)\n", pidFile, err)
+		// }
 
 		// remove metadata file
 		if err := os.Remove(metaFile); err != nil {
