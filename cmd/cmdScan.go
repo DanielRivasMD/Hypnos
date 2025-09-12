@@ -28,7 +28,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/DanielRivasMD/domovoi"
 	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +36,7 @@ import (
 
 // probeEntry mirrors the JSON you wrote in hibernateCmd
 type probeEntry struct {
-	Name       string        `json:"name"`
+	Probe      string        `json:"probe"`
 	LogPath    string        `json:"log_path"`
 	Duration   time.Duration `json:"duration"`
 	PID        int           `json:"pid"`
@@ -67,12 +66,7 @@ func runScan(cmd *cobra.Command, args []string) {
 	const op = "hypnos.scan"
 
 	// TODO: double check location of active probes
-	// 1) find ~/.hypnos/meta
-	home, err := domovoi.FindHome(verbose)
-	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("finding home dir"))
-
-	metaDir := filepath.Join(home, ".hypnos", "meta")
-	fis, err := os.ReadDir(metaDir)
+	fis, err := os.ReadDir(dirs.probe)
 	if err != nil {
 		horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading meta directory"))
 	}
@@ -81,13 +75,13 @@ func runScan(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// 2) load each .json, check pid
+	// load each .json, check pid
 	entries := make([]probeEntry, 0, len(fis))
 	for _, fi := range fis {
 		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".json") {
 			continue
 		}
-		path := filepath.Join(metaDir, fi.Name())
+		path := filepath.Join(dirs.probe, fi.Name())
 		data, err := os.ReadFile(path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "warning: cannot read %s: %v\n", fi.Name(), err)
@@ -101,7 +95,7 @@ func runScan(cmd *cobra.Command, args []string) {
 		entries = append(entries, m)
 	}
 
-	// 3) print table
+	// print table
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 2, ' ', 0)
 	fmt.Fprintln(w, "NAME\tPID\tINVOKED\tDURATION\tSTATUS")
 	now := time.Now()
@@ -118,7 +112,7 @@ func runScan(cmd *cobra.Command, args []string) {
 		// elapsed since invoked
 		age := now.Sub(m.Quiescence).Truncate(time.Second)
 		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\n",
-			m.Name,
+			m.Probe,
 			m.PID,
 			m.Quiescence.Format("2006-01-02 15:04:05"),
 			fmt.Sprintf("%s (%s ago)", m.Duration, age),
