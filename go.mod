@@ -3,7 +3,7 @@ module github.com/DanielRivasMD/Hypnos
 go 1.23.4
 
 require (
-	github.com/DanielRivasMD/domovoi v0.0.0-20250722183845-36175cc1001f
+	github.com/DanielRivasMD/domovoi v0.0.0-20250910075839-83597940b8dd
 	github.com/DanielRivasMD/horus v0.0.0-20250720121844-e0d6d2cf145a
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
