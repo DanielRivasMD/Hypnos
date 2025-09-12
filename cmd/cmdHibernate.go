@@ -216,7 +216,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.run"
 
 	meta := &probeMeta{
-		Name:       launcher.probe,
+		Probe:      launcher.probe,
 		Script:     launcher.script,
 		LogPath:    filepath.Join(dirs.log, launcher.log+".log"),
 		Duration:   launcher.duration,
@@ -246,12 +246,9 @@ func runHibernate(cmd *cobra.Command, args []string) {
 func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.run"
 
-	home, err := domovoi.FindHome(verbose)
-	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("finding home"))
-	base := filepath.Join(home, ".hypnos")
-
 	// pid file
-	pidFile := filepath.Join(base, "probe", worker.probe+".pid")
+	// BUG: there is no pid file here. is this temp?
+	pidFile := filepath.Join(dirs.probe, worker.probe+".pid")
 	pid := os.Getpid()
 	horus.CheckErr(
 		os.WriteFile(pidFile,
@@ -262,7 +259,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	defer os.Remove(pidFile)
 
 	// open log
-	logFile := filepath.Join(base, "log", worker.log+".log")
+	logFile := filepath.Join(dirs.log, worker.log+".log")
 	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("opening log file"))
 	defer f.Close()
@@ -307,7 +304,7 @@ func spawnProbe(meta *probeMeta) (int, error) {
 	exe, _ := os.Executable()
 	args := []string{
 		"hibernate-run",
-		"--name", meta.Name,
+		"--probe", meta.Probe,
 		"--log", strings.TrimSuffix(filepath.Base(meta.LogPath), ".log"),
 		"--script", meta.Script,
 		"--duration", meta.Duration.String(),

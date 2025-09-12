@@ -73,7 +73,7 @@ func init() {
 
 // probeMeta holds persisted state for each probe invocation
 type probeMeta struct {
-	Name       string        `json:"name"`
+	Probe      string        `json:"probe"`
 	Script     string        `json:"script"`
 	LogPath    string        `json:"log_path"`
 	Duration   time.Duration `json:"duration"`
