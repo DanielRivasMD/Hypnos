@@ -215,32 +215,10 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 func runHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.run"
 
-	horus.CheckEmpty(
-		launcher.script,
-		"`--script` is required when --config is not provided",
-		horus.WithOp(op),
-		horus.WithMessage("provide a shell command to run"),
-	)
-	horus.CheckEmpty(
-		launcher.log,
-		"`--log` is required when --config is not provided",
-		horus.WithOp(op),
-		horus.WithMessage("provide a log basename"),
-	)
-	horus.CheckEmpty(
-		launcher.probe,
-		"`--name` is required when --config is not provided",
-		horus.WithOp(op),
-		horus.WithMessage("provide an instance name"),
-	)
-
-	home, err := domovoi.FindHome(verbose)
-	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("finding home"))
-
 	meta := &probeMeta{
 		Name:       launcher.probe,
 		Script:     launcher.script,
-		LogPath:    filepath.Join(home, ".hypnos", "logs", launcher.log+".log"),
+		LogPath:    filepath.Join(dirs.log, launcher.log+".log"),
 		Duration:   launcher.duration,
 		Quiescence: time.Now(),
 	}
@@ -250,7 +228,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 	meta.PID = pid
 
 	// Persist metadata
-	metaFile := filepath.Join(home, ".hypnos", "meta", launcher.probe+".json")
+	metaFile := filepath.Join(dirs.probe, launcher.probe+".json")
 	f, err := os.Create(metaFile)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("creating meta file"))
 	defer f.Close()
@@ -284,7 +262,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	defer os.Remove(pidFile)
 
 	// open log
-	logFile := filepath.Join(base, "logs", worker.log+".log")
+	logFile := filepath.Join(base, "log", worker.log+".log")
 	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("opening log file"))
 	defer f.Close()

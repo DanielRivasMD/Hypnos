@@ -91,7 +91,7 @@ func initConfigPaths() {
 	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
 	dirs.hypnos = filepath.Join(dirs.home, ".hypnos")
 	dirs.config = filepath.Join(dirs.hypnos, "config")
-	dirs.log = filepath.Join(dirs.hypnos, "logs")
+	dirs.log = filepath.Join(dirs.hypnos, "log")
 	dirs.probe = filepath.Join(dirs.hypnos, "probe")
 }
 
