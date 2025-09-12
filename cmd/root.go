@@ -95,7 +95,7 @@ func initConfigPaths() {
 	dirs.probe = filepath.Join(dirs.hypnos, "probe")
 }
 
-func errorFmt(er string) string {
+func onelineErr(er string) string {
 	return chalk.Bold.TextStyle(chalk.Red.Color(er))
 }
 
