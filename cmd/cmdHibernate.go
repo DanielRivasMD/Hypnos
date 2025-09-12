@@ -267,6 +267,10 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 		// schedule and wait
 		done := make(chan struct{})
 		runDowntime(worker.duration, func() {
+			log("▸ timer fired, executing shell snippet")
+			if err := domovoi.ExecSh(worker.script); err != nil {
+				log("▸ command failed: %v", err)
+			}
 			log("▸ timer fired, sending notification")
 			if err := notify("Hypnos-"+worker.probe, "Downtime complete"); err != nil {
 				log("▸ notify failed: %v", err)
