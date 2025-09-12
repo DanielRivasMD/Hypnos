@@ -5,38 +5,24 @@ package cmd
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
-	"github.com/ttacon/chalk"
+	"github.com/DanielRivasMD/domovoi"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// formatHelp produces the “help” header + description.
-//
-//	author: name, e.g. "Daniel Rivas"
-//	email:  email, e.g. "danielrivasmd@gmail.com"
-//	desc:   the multi‐line description, "\n"-separated.
-func formatHelp(author, email, desc string) string {
-	header := chalk.Bold.TextStyle(
-		chalk.Green.Color(author+" "),
-	) +
-		chalk.Dim.TextStyle(
-			chalk.Italic.TextStyle("<"+email+">"),
-		)
-
-	// prefix two newlines to your desc, chalk it cyan + dim it
-	body := "\n\n" + desc
-	return header + chalk.Dim.TextStyle(chalk.Cyan.Color(body))
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-var helpRoot = formatHelp(
+var helpRoot = domovoi.FormatHelp(
 	"Daniel Rivas",
 	"danielrivasmd@gmail.com",
 	"",
 )
 
-var helpHibernate = formatHelp(
+var helpAwaken = domovoi.FormatHelp(
+	"Daniel Rivas",
+	"<danielrivasmd@gmail.com>",
+	"",
+)
+
+var helpHibernate = domovoi.FormatHelp(
 	"Daniel Rivas",
 	"danielrivasmd@gmail.com",
 	"Invoke a short-lived worker that waits, then runs your script\n"+
@@ -44,13 +30,13 @@ var helpHibernate = formatHelp(
 		"to load a workflow from ~/.hypnos/config/*.toml.",
 )
 
-var helpScan = formatHelp(
+var helpScan = domovoi.FormatHelp(
 	"Daniel Rivas",
 	"danielrivasmd@gmail.com",
 	"",
 )
 
-var helpStatis = formatHelp(
+var helpStatis = domovoi.FormatHelp(
 	"Daniel Rivas",
 	"danielrivasmd@gmail.com",
 	"Stops the named downtime instances\n"+
