@@ -1,6 +1,6 @@
 - add a master control for working day => hypnos regular work - launch mail, take breaks, call people
 - set a timer for taking breaks
-- add purge command
+- add stasis cmd => freeze probes
 - add one-liner errors
 
 ==================================================
@@ -9,12 +9,11 @@ cmd/cmdHibernate.go
   line 42     TODO   allow `duration` or `time`
   line 157    TODO   bind differnt types
   line 268    TODO   exec & notify code
+cmd/cmdPurge.go
+  line 40     TODO   add completions for current probes
+  line 84     TODO   remove the log as well
 cmd/cmdScan.go
   line 68     TODO   double check location of active probes
-cmd/cmdStasis.go
-  line 39     TODO   rename command => `hypnos purge`
-  line 46     TODO   add completions for current probes
-  line 84     TODO   remove the log as well
 cmd/root.go
   line 64     TODO   add command to launch all jobs as recurrent, i.e., start session
 ==================================================

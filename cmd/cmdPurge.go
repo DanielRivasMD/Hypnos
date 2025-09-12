@@ -26,19 +26,13 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/ttacon/chalk"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func init() {
-	rootCmd.AddCommand(stasisCmd)
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// TODO: rename command => `hypnos purge`
-var stasisCmd = &cobra.Command{
-	Use:     "stasis [name ...]",
+var purgeCmd = &cobra.Command{
+	Use:     "purge " + chalk.Dim.TextStyle(chalk.Italic.TextStyle("[probe]")),
 	Short:   "Place probes in statis",
 	Long:    helpStatis,
 	Example: exampleStasis,
@@ -46,13 +40,19 @@ var stasisCmd = &cobra.Command{
 	// TODO: add completions for current probes
 	Args: cobra.MinimumNArgs(1),
 
-	Run: runStasis,
+	Run: runPurge,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func runStasis(cmd *cobra.Command, args []string) {
-	const op = "hypnos.stasis"
+func init() {
+	rootCmd.AddCommand(purgeCmd)
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func runPurge(cmd *cobra.Command, args []string) {
+	const op = "hypnos.purge"
 
 	for _, name := range args {
 		metaFile := filepath.Join(dirs.probe, name+".json")
