@@ -67,6 +67,8 @@ type configDirs struct {
 type hypnosFlags struct {
 	verbose bool
 
+	configOutput string
+
 	purgeAll   bool
 	purgeGroup string
 }
@@ -177,6 +179,84 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 			),
 		)
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// saveProbeMeta writes probe metadata to ~/.hypnos/probe/<name>.json
+func saveProbeMeta(meta *probeMeta) {
+	const op = "probe.saveMeta"
+
+	// ensure the probe directory exists
+	horus.CheckErr(
+		domovoi.CreateDir(dirs.probe, flags.verbose),
+		horus.WithOp(op),
+		horus.WithCategory("io_error"),
+		horus.WithMessage("creating probe directory"),
+		horus.WithDetails(map[string]any{
+			"dir": dirs.probe,
+		}),
+	)
+
+	// marshal the metadata
+	data, err := json.MarshalIndent(meta, "", "  ")
+	horus.CheckErr(
+		err,
+		horus.WithOp(op),
+		horus.WithCategory("encode_error"),
+		horus.WithMessage("marshaling probe metadata"),
+		horus.WithDetails(map[string]any{
+			"probe": meta.Probe,
+			"group": meta.Group,
+		}),
+	)
+
+	// write the file
+	path := filepath.Join(dirs.probe, meta.Probe+".json")
+	horus.CheckErr(
+		os.WriteFile(path, data, 0o644),
+		horus.WithOp(op),
+		horus.WithCategory("io_error"),
+		horus.WithMessage("writing probe metadata file"),
+		horus.WithDetails(map[string]any{
+			"path": path,
+		}),
+	)
+}
+
+// loadProbeMeta reads ~/.hypnos/meta/<name>.json
+func loadProbeMeta(name string) *probeMeta {
+	const op = "hypnos.loadProbeMeta"
+
+	path := filepath.Join(dirs.probe, name+".json")
+
+	// read the file
+	data, err := os.ReadFile(path)
+	horus.CheckErr(
+		err,
+		horus.WithOp(op),
+		horus.WithCategory("io_error"),
+		horus.WithMessage("reading probe metadata file"),
+		horus.WithDetails(map[string]any{
+			"path": path,
+			"name": name,
+		}),
+	)
+
+	// unmarshal into struct
+	var meta probeMeta
+	horus.CheckErr(
+		json.Unmarshal(data, &meta),
+		horus.WithOp(op),
+		horus.WithCategory("decode_error"),
+		horus.WithMessage("unmarshaling probe metadata"),
+		horus.WithDetails(map[string]any{
+			"path": path,
+			"name": name,
+		}),
+	)
+
+	return &meta
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
