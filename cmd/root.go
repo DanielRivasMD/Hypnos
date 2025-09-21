@@ -20,8 +20,10 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DanielRivasMD/domovoi"
@@ -145,6 +147,53 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 			),
 		)
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// listProbeMetaFiles returns the full paths of all probe metadata JSON files
+func listProbeMetaFiles() []string {
+	var files []string
+	entries, err := os.ReadDir(dirs.probe)
+	if err != nil {
+		return files
+	}
+	for _, fi := range entries {
+		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".json") {
+			continue
+		}
+		files = append(files, filepath.Join(dirs.probe, fi.Name()))
+	}
+	return files
+}
+
+// stripProbeName takes a metadata file path and returns the bare probe name
+// e.g. ~/.hypnos/meta/pmail.json -> "pmail"
+func stripProbeName(metaFile string) string {
+	base := filepath.Base(metaFile)
+	return strings.TrimSuffix(base, ".json")
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// completeProbeNames suggests currently known probe names (from ~/.hypnos/meta/*.json)
+func completeProbeNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	var names []string
+
+	files, err := os.ReadDir(dirs.probe)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	for _, fi := range files {
+		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".json") {
+			continue
+		}
+		name := strings.TrimSuffix(fi.Name(), ".json")
+		if strings.HasPrefix(name, toComplete) {
+			names = append(names, name)
+		}
+	}
+	return names, cobra.ShellCompDirectiveNoFileComp
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
