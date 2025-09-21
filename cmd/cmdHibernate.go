@@ -82,6 +82,7 @@ type configPaths struct {
 	duration   time.Duration
 	recurrent  bool
 	iterations int
+	notify     bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,6 +98,7 @@ func init() {
 	hibernateLauncherCmd.Flags().DurationVarP(&launcher.duration, "duration", "", time.Hour, "how long to wait")
 	hibernateLauncherCmd.Flags().BoolVarP(&launcher.recurrent, "recurrent", "", false, "repeat timer indefinitely")
 	hibernateLauncherCmd.Flags().IntVarP(&launcher.iterations, "iterations", "", 0, "run this many times (0=unlimited if --recurrent)")
+	hibernateLauncherCmd.Flags().BoolVar(&launcher.notify, "notify-only", false, "only send notification, skip script execution")
 
 	hibernateWorkerCmd.Flags().StringVar(&worker.probe, "probe", "", "instance name")
 	hibernateWorkerCmd.Flags().StringVar(&worker.group, "group", "", "group label for this probe")
@@ -105,6 +107,7 @@ func init() {
 	hibernateWorkerCmd.Flags().DurationVar(&worker.duration, "duration", time.Hour, "how long to wait")
 	hibernateWorkerCmd.Flags().BoolVar(&worker.recurrent, "recurrent", false, "")
 	hibernateWorkerCmd.Flags().IntVar(&worker.iterations, "iterations", 0, "")
+	hibernateWorkerCmd.Flags().BoolVar(&worker.notify, "notify-only", false, "only send notification, skip script execution")
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -263,11 +266,19 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 		count++
 
 		done := make(chan struct{})
+
+		// BUG: nofity-only
 		runDowntime(worker.duration, func() {
-			log("▸ timer fired, executing shell snippet")
-			if err := domovoi.ExecSh(worker.script); err != nil {
-				log("▸ command failed: %v", err)
+			if !worker.notify {
+				log("▸ timer fired, executing shell snippet")
+				if err := domovoi.ExecSh(worker.script); err != nil {
+					log("▸ command failed: %v", err)
+				}
+			} else {
+				log("▸ notify-only mode, skipping script execution")
 			}
+
+			log("▸ timer fired, sending notification")
 			if err := notify("Hypnos-"+worker.probe, "Downtime complete"); err != nil {
 				log("▸ notify failed: %v", err)
 			} else {
@@ -312,6 +323,9 @@ func spawnProbe(meta *probeMeta) (int, error) {
 	} else if meta.Recurrent {
 		// Only add --recurrent if infinite looping is desired
 		args = append(args, "--recurrent")
+	}
+	if meta.Notify {
+		args = append(args, "--notify-only")
 	}
 
 	f, err := os.OpenFile(meta.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)

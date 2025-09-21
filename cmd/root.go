@@ -93,6 +93,7 @@ type probeMeta struct {
 	Iterations int           `json:"iterations"`
 	PID        int           `json:"pid"`
 	Quiescence time.Time     `json:"quiescence"`
+	Notify     bool          `json:"notify"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -340,6 +341,7 @@ func completeProbeGroups(cmd *cobra.Command, args []string, toComplete string) (
 	return out, cobra.ShellCompDirectiveNoFileComp
 }
 
+// BUG: completion is detecting the names of the fields
 func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	files, err := os.ReadDir(dirs.config)
 	if err != nil {
