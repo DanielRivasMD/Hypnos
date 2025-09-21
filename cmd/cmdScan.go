@@ -65,8 +65,8 @@ func runScan(cmd *cobra.Command, args []string) {
 
 	// print header
 	fmt.Printf(
-		"%-20s %-6s %-20s %-12s %s\n",
-		"NAME", "PID", "INVOKED", "DURATION", "STATUS",
+		"%-20s %-15s %-6s %-20s %s\n",
+		"NAME", "GROUP", "PID", "INVOKED", "STATUS",
 	)
 
 	// iterate over metadata files
@@ -80,15 +80,15 @@ func runScan(cmd *cobra.Command, args []string) {
 		meta := loadProbeMeta(name)
 
 		// determine process status via `ps`
-		status := chalk.Red.Color("dead")
+		status := chalk.Red.Color("mortem")
 		stateOut, err := exec.Command("ps", "-o", "state=", "-p", strconv.Itoa(meta.PID)).Output()
 		if err == nil {
 			state := strings.TrimSpace(string(stateOut))
 			switch {
 			case strings.HasPrefix(state, "T"):
-				status = chalk.Yellow.Color("limbo")
+				status = chalk.Yellow.Color("stasis")
 			default:
-				status = chalk.Green.Color("alive")
+				status = chalk.Green.Color("hibernating")
 			}
 		}
 
