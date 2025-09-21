@@ -1,6 +1,11 @@
 [workflows.mail]
 group = "work"
-script = "open -a 'Mail'"
+script = "open -a 'Canary Mail'"
 duration = "5s"
 log = "mail"
-probe = "pmail"
+
+[workflows.break]
+group = "work"
+script = "sleep 10 && pmset displaysleepnow"
+duration = "1m"
+log = "break"
