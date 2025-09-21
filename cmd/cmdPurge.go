@@ -20,11 +20,14 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 
+	"github.com/DanielRivasMD/domovoi"
+	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
 	"github.com/ttacon/chalk"
 )
@@ -33,12 +36,12 @@ import (
 
 var purgeCmd = &cobra.Command{
 	Use:     "purge " + chalk.Dim.TextStyle(chalk.Italic.TextStyle("[probe]")),
-	Short:   "Place probes in statis",
-	Long:    helpStatis,
-	Example: exampleStasis,
+	Short:   "Terminate and clean up probes",
+	Long:    helpPurge,
+	Example: examplePurge,
 
-	// TODO: add completions for current probes
-	Args: cobra.MinimumNArgs(1),
+	Args:              cobra.MaximumNArgs(1),
+	ValidArgsFunction: completeProbeNames,
 
 	Run: runPurge,
 }
@@ -47,6 +50,15 @@ var purgeCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(purgeCmd)
+
+	purgeCmd.Flags().BoolVar(&flags.purgeAll, "all", false, "Purge all probes")
+	purgeCmd.Flags().StringVar(&flags.purgeGroup, "group", "", "Purge all probes in a specific group")
+
+	// horus.CheckErr(
+	// 	purgeCmd.RegisterFlagCompletionFunc("group", completeProbeGroups),
+	// 	horus.WithOp("purge.init"),
+	// 	horus.WithMessage("registering group completion"),
+	// )
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,38 +66,92 @@ func init() {
 func runPurge(cmd *cobra.Command, args []string) {
 	const op = "hypnos.purge"
 
-	for _, name := range args {
-		metaFile := filepath.Join(dirs.probe, name+".json")
-		data, err := os.ReadFile(metaFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: metadata for %q not found (%v)\n", name, err)
-			continue
-		}
+	switch {
+	case flags.purgeAll:
+		purgeAllProbes()
+	// case flags.purgeGroup != "":
+	// 	purgeGroupProbes(flags.purgeGroup)
+	case len(args) == 1:
+		purgeProbe(args[0])
+	default:
+		horus.CheckErr(
+			errors.New(""),
+			horus.WithOp(op),
+			horus.WithMessage("probe / flag"),
+			horus.WithExitCode(2),
+			horus.WithFormatter(func(he *horus.Herror) string {
+				return "missing " + onelineErr(he.Message)
+			}),
+		)
+	}
+}
 
-		// parse metadata to get PID
-		var m struct{ PID int }
-		if err := json.Unmarshal(data, &m); err != nil {
-			fmt.Fprintf(os.Stderr, "error: invalid metadata for %q (%v)\n", name, err)
-			continue
-		}
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		// attempt to kill
-		if err := syscall.Kill(m.PID, syscall.SIGTERM); err != nil {
-			if err == syscall.ESRCH {
-				fmt.Printf("warning: process %d for %q not running\n", m.PID, name)
-			} else {
-				fmt.Fprintf(os.Stderr, "error: cannot kill PID %d for %q (%v)\n", m.PID, name, err)
-				continue
-			}
+func purgeProbe(name string) {
+	const op = "hypnos.purge"
+
+	metaFile := filepath.Join(dirs.probe, name+".json")
+	data, err := os.ReadFile(metaFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: metadata for %q not found (%v)\n", name, err)
+		return
+	}
+
+	var m probeMeta
+	if err := json.Unmarshal(data, &m); err != nil {
+		fmt.Fprintf(os.Stderr, "error: invalid metadata for %q (%v)\n", name, err)
+		return
+	}
+
+	// try terminating process, but proceed if already gone
+	if err := syscall.Kill(m.PID, syscall.SIGTERM); err != nil {
+		if err == syscall.ESRCH {
+			fmt.Printf("warning: process %d for %q not running\n", m.PID, name)
 		} else {
-			fmt.Printf("OK: sent SIGTERM to PID %d for %q\n", m.PID, name)
+			fmt.Fprintf(os.Stderr, "error: cannot kill PID %d for %q (%v)\n", m.PID, name, err)
+			return
 		}
+	} else {
+		fmt.Printf("%s sent SIGTERM to PID %d for %q\n", chalk.Green.Color("OK:"), m.PID, name)
+	}
 
-		// TODO: remove the log as well
-		// remove metadata file
-		if err := os.Remove(metaFile); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: cannot remove metadata %s (%v)\n", metaFile, err)
-		}
+	// remove metadata JSON file
+	horus.CheckErr(
+		func() error {
+			_, err := domovoi.RemoveFile(metaFile, flags.verbose)(metaFile)
+			return err
+		}(),
+		horus.WithOp(op),
+		horus.WithCategory("io_error"),
+		horus.WithMessage("removing metadata file"),
+	)
+
+	// remove log file
+	horus.CheckErr(
+		func() error {
+			_, err := domovoi.RemoveFile(m.LogPath, flags.verbose)(m.LogPath)
+			return err
+		}(),
+		horus.WithOp(op),
+		horus.WithCategory("io_error"),
+		horus.WithMessage("removing log file"),
+	)
+
+	fmt.Printf("%s purged probe %q\n", chalk.Green.Color("OK:"), m.Probe)
+}
+
+// func purgeGroupProbes(group string) {
+// 	for _, metaFile := range listProbeMetaFiles() {
+// 		if matchProbeGroup(metaFile, group) {
+// 			purgeProbe(stripProbeName(metaFile))
+// 		}
+// 	}
+// }
+
+func purgeAllProbes() {
+	for _, metaFile := range listProbeMetaFiles() {
+		purgeProbe(stripProbeName(metaFile))
 	}
 }
 
