@@ -49,6 +49,9 @@ var hibernateLauncherCmd = &cobra.Command{
 	Long:    helpHibernate,
 	Example: exampleHibernate,
 
+	Args:              cobra.MaximumNArgs(1),
+	ValidArgsFunction: completeWorkflowNames,
+
 	PreRun: preRunHibernate,
 	Run:    runHibernate,
 }

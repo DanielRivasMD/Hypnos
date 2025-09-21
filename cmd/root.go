@@ -202,4 +202,32 @@ func completeProbeNames(cmd *cobra.Command, args []string, toComplete string) ([
 	return names, cobra.ShellCompDirectiveNoFileComp
 }
 
+func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	files, err := os.ReadDir(dirs.config)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveError
+	}
+	var opts []string
+	for _, fi := range files {
+		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".toml") {
+			continue
+		}
+		path := filepath.Join(dirs.config, fi.Name())
+		v := viper.New()
+		v.SetConfigFile(path)
+		if err := v.ReadInConfig(); err != nil {
+			continue
+		}
+		for _, key := range v.AllKeys() {
+			if strings.HasPrefix(key, "workflows.") {
+				wf := strings.TrimPrefix(key, "workflows.")
+				if strings.HasPrefix(wf, toComplete) {
+					opts = append(opts, wf)
+				}
+			}
+		}
+	}
+	return opts, cobra.ShellCompDirectiveNoFileComp
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
