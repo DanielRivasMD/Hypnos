@@ -19,7 +19,6 @@ package cmd
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -91,35 +90,25 @@ func runPurge(cmd *cobra.Command, args []string) {
 func purgeProbe(name string) {
 	const op = "hypnos.purge"
 
-	metaFile := filepath.Join(dirs.probe, name+".json")
-	data, err := os.ReadFile(metaFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: metadata for %q not found (%v)\n", name, err)
-		return
-	}
-
-	var m probeMeta
-	if err := json.Unmarshal(data, &m); err != nil {
-		fmt.Fprintf(os.Stderr, "error: invalid metadata for %q (%v)\n", name, err)
-		return
-	}
+	// load metadata via helper
+	meta := loadProbeMeta(name)
 
 	// try terminating process, but proceed if already gone
-	if err := syscall.Kill(m.PID, syscall.SIGTERM); err != nil {
+	if err := syscall.Kill(meta.PID, syscall.SIGTERM); err != nil {
 		if err == syscall.ESRCH {
-			fmt.Printf("warning: process %d for %q not running\n", m.PID, name)
+			fmt.Printf("warning: process %d for %q not running\n", meta.PID, name)
 		} else {
-			fmt.Fprintf(os.Stderr, "error: cannot kill PID %d for %q (%v)\n", m.PID, name, err)
+			fmt.Fprintf(os.Stderr, "error: cannot kill PID %d for %q (%v)\n", meta.PID, name, err)
 			return
 		}
 	} else {
-		fmt.Printf("%s sent SIGTERM to PID %d for %q\n", chalk.Green.Color("OK:"), m.PID, name)
+		fmt.Printf("%s sent SIGTERM to PID %d for %q\n", chalk.Green.Color("OK:"), meta.PID, name)
 	}
 
 	// remove metadata JSON file
 	horus.CheckErr(
 		func() error {
-			_, err := domovoi.RemoveFile(metaFile, flags.verbose)(metaFile)
+			_, err := domovoi.RemoveFile(filepath.Join(dirs.probe, name+".json"), flags.verbose)(filepath.Join(dirs.probe, name+".json"))
 			return err
 		}(),
 		horus.WithOp(op),
@@ -130,7 +119,7 @@ func purgeProbe(name string) {
 	// remove log file
 	horus.CheckErr(
 		func() error {
-			_, err := domovoi.RemoveFile(m.LogPath, flags.verbose)(m.LogPath)
+			_, err := domovoi.RemoveFile(meta.LogPath, flags.verbose)(meta.LogPath)
 			return err
 		}(),
 		horus.WithOp(op),
@@ -138,7 +127,7 @@ func purgeProbe(name string) {
 		horus.WithMessage("removing log file"),
 	)
 
-	fmt.Printf("%s purged probe %q\n", chalk.Green.Color("OK:"), m.Probe)
+	fmt.Printf("%s purged probe %q\n", chalk.Green.Color("OK:"), meta.Probe)
 }
 
 func purgeGroupProbes(group string) {
