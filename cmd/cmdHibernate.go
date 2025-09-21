@@ -58,7 +58,8 @@ var hibernateLauncherCmd = &cobra.Command{
 var hibernateWorkerCmd = &cobra.Command{
 	Use:    "hibernate-run",
 	Hidden: true,
-	Run:    hiddenRunHibernate,
+
+	Run: hiddenRunHibernate,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,7 +120,6 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 		files, err := domovoi.ReadDir(dirs.config, verbose)
 		horus.CheckErr(err, horus.WithOp(op), horus.WithCategory("env_error"), horus.WithMessage("reading config dir"))
 		var foundV *viper.Viper
-		var configFileUsed string
 		for _, f := range files {
 			if f.IsDir() || !strings.HasSuffix(f.Name(), ".toml") {
 				continue
@@ -132,7 +132,6 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 			}
 			if v.IsSet("workflows." + launcher.config) {
 				foundV = v
-				configFileUsed = path
 				break
 			}
 		}
@@ -159,13 +158,6 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 		bindFlag(cmd, "duration", wf)
 		bindFlag(cmd, "recurrent", wf)
 		bindFlag(cmd, "iterations", wf)
-
-		// group default
-		if !cmd.Flags().Changed("group") {
-			base := filepath.Base(configFileUsed)
-			launcher.group = strings.TrimSuffix(base, filepath.Ext(base))
-			horus.CheckErr(cmd.Flags().Set("group", launcher.group), horus.WithOp(op), horus.WithMessage("setting default --group"))
-		}
 
 		// log default
 		if !cmd.Flags().Changed("log") {
@@ -221,6 +213,8 @@ func runHibernate(cmd *cobra.Command, args []string) {
 		Script:     launcher.script,
 		LogPath:    filepath.Join(dirs.log, launcher.log+".log"),
 		Duration:   launcher.duration,
+		Recurrent:  launcher.recurrent,
+		Iterations: launcher.iterations,
 		Quiescence: time.Now(),
 	}
 
@@ -239,7 +233,11 @@ func runHibernate(cmd *cobra.Command, args []string) {
 		horus.WithMessage("encoding metadata"),
 	)
 
-	fmt.Printf("OK: spawned downtime %q with PID %d\n", launcher.probe, pid)
+	fmt.Printf("%s: spawned downtime %s with PID %s\n",
+		chalk.Green.Color("OK:"),
+		chalk.Green.Color(launcher.probe),
+		chalk.Green.Color(strconv.Itoa(pid)),
+	)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -261,6 +259,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 
 	log("Downtime %q started for %s", worker.probe, worker.duration)
 
+	// TODO: iterations not working properly
 	count := 0
 	for {
 		count++
@@ -281,6 +280,7 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 		})
 		<-done
 
+		// TODO: if iterations flags
 		// if iterations specified, stop after that many
 		if worker.iterations > 0 && count >= worker.iterations {
 			break
@@ -300,7 +300,9 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 
 // spawnProbe forks off a new "hibernate-run" worker process, piping its output into the log
 func spawnProbe(meta *probeMeta) (int, error) {
+	// TODO: add error handlers
 	exe, _ := os.Executable()
+
 	args := []string{
 		"hibernate-run",
 		"--probe", meta.Probe,
