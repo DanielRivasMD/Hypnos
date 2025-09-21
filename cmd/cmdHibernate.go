@@ -91,6 +91,7 @@ func init() {
 	rootCmd.AddCommand(hibernateWorkerCmd)
 
 	hibernateLauncherCmd.Flags().StringVarP(&launcher.probe, "probe", "", "", "instance name (manual or default: <config>-<ts>)")
+	hibernateLauncherCmd.Flags().StringVarP(&launcher.group, "group", "g", "", "group label for this probe")
 	hibernateLauncherCmd.Flags().StringVarP(&launcher.log, "log", "", "", "log file basename (no .log)")
 	hibernateLauncherCmd.Flags().StringVarP(&launcher.script, "script", "", "", "shell command to execute")
 	hibernateLauncherCmd.Flags().DurationVarP(&launcher.duration, "duration", "", time.Hour, "how long to wait")
@@ -98,6 +99,7 @@ func init() {
 	hibernateLauncherCmd.Flags().IntVarP(&launcher.iterations, "iterations", "", 0, "run this many times (0=unlimited if --recurrent)")
 
 	hibernateWorkerCmd.Flags().StringVar(&worker.probe, "probe", "", "instance name")
+	hibernateWorkerCmd.Flags().StringVar(&worker.group, "group", "", "group label for this probe")
 	hibernateWorkerCmd.Flags().StringVar(&worker.log, "log", "", "log basename")
 	hibernateWorkerCmd.Flags().StringVar(&worker.script, "script", "", "shell command to execute")
 	hibernateWorkerCmd.Flags().DurationVar(&worker.duration, "duration", time.Hour, "how long to wait")
@@ -213,6 +215,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 
 	meta := &probeMeta{
 		Probe:      launcher.probe,
+		Group:      launcher.group,
 		Script:     launcher.script,
 		LogPath:    filepath.Join(dirs.log, launcher.log+".log"),
 		Duration:   launcher.duration,

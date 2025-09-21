@@ -1,4 +1,5 @@
 [workflows.mail]
+group = "work"
 script = "open -a 'Mail'"
 duration = "5s"
 log = "mail"

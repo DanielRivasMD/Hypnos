@@ -54,11 +54,11 @@ func init() {
 	purgeCmd.Flags().BoolVar(&flags.purgeAll, "all", false, "Purge all probes")
 	purgeCmd.Flags().StringVar(&flags.purgeGroup, "group", "", "Purge all probes in a specific group")
 
-	// horus.CheckErr(
-	// 	purgeCmd.RegisterFlagCompletionFunc("group", completeProbeGroups),
-	// 	horus.WithOp("purge.init"),
-	// 	horus.WithMessage("registering group completion"),
-	// )
+	horus.CheckErr(
+		purgeCmd.RegisterFlagCompletionFunc("group", completeProbeGroups),
+		horus.WithOp("purge.init"),
+		horus.WithMessage("registering group completion"),
+	)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,8 +69,8 @@ func runPurge(cmd *cobra.Command, args []string) {
 	switch {
 	case flags.purgeAll:
 		purgeAllProbes()
-	// case flags.purgeGroup != "":
-	// 	purgeGroupProbes(flags.purgeGroup)
+	case flags.purgeGroup != "":
+		purgeGroupProbes(flags.purgeGroup)
 	case len(args) == 1:
 		purgeProbe(args[0])
 	default:
@@ -141,13 +141,13 @@ func purgeProbe(name string) {
 	fmt.Printf("%s purged probe %q\n", chalk.Green.Color("OK:"), m.Probe)
 }
 
-// func purgeGroupProbes(group string) {
-// 	for _, metaFile := range listProbeMetaFiles() {
-// 		if matchProbeGroup(metaFile, group) {
-// 			purgeProbe(stripProbeName(metaFile))
-// 		}
-// 	}
-// }
+func purgeGroupProbes(group string) {
+	for _, metaFile := range listProbeMetaFiles() {
+		if matchProbeGroup(metaFile, group) {
+			purgeProbe(stripProbeName(metaFile))
+		}
+	}
+}
 
 func purgeAllProbes() {
 	for _, metaFile := range listProbeMetaFiles() {

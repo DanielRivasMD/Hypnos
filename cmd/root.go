@@ -19,6 +19,7 @@ package cmd
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -82,6 +83,7 @@ func init() {
 // probeMeta holds persisted state for each probe invocation
 type probeMeta struct {
 	Probe      string        `json:"probe"`
+	Group      string        `json:"group"`
 	Script     string        `json:"script"`
 	LogPath    string        `json:"log_path"`
 	Duration   time.Duration `json:"duration"`
@@ -202,6 +204,18 @@ func stripProbeName(metaFile string) string {
 	return strings.TrimSuffix(base, ".json")
 }
 
+func matchProbeGroup(metaFile string, group string) bool {
+	data, err := os.ReadFile(metaFile)
+	if err != nil {
+		return false
+	}
+	var m probeMeta
+	if err := json.Unmarshal(data, &m); err != nil {
+		return false
+	}
+	return m.Group == group
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // completeProbeNames suggests currently known probe names (from ~/.hypnos/meta/*.json)
@@ -222,6 +236,28 @@ func completeProbeNames(cmd *cobra.Command, args []string, toComplete string) ([
 		}
 	}
 	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+func completeProbeGroups(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	groups := make(map[string]struct{})
+	for _, metaFile := range listProbeMetaFiles() {
+		data, err := os.ReadFile(metaFile)
+		if err != nil {
+			continue
+		}
+		var m probeMeta
+		if err := json.Unmarshal(data, &m); err != nil {
+			continue
+		}
+		if m.Group != "" && strings.HasPrefix(m.Group, toComplete) {
+			groups[m.Group] = struct{}{}
+		}
+	}
+	var out []string
+	for g := range groups {
+		out = append(out, g)
+	}
+	return out, cobra.ShellCompDirectiveNoFileComp
 }
 
 func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
