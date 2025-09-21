@@ -124,21 +124,43 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 		return
 	}
 
-	// build string representation based on flag declared type
 	var raw string
 	switch f.Value.Type() {
 	case "string":
 		raw = cfg.GetString(flagName)
+
 	case "int":
 		raw = strconv.Itoa(cfg.GetInt(flagName))
+
 	case "bool":
 		raw = strconv.FormatBool(cfg.GetBool(flagName))
+
+	case "duration":
+		// viper stores durations as string, so parse and re-stringify
+		val := cfg.GetString(flagName)
+		if _, err := time.ParseDuration(val); err == nil {
+			raw = val
+		} else {
+			horus.CheckErr(
+				horus.NewCategorizedHerror(
+					op,
+					"config_error",
+					fmt.Sprintf("invalid duration for %q", flagName),
+					err,
+					map[string]any{"value": val},
+				),
+			)
+			return
+		}
+
+	case "float64":
+		raw = strconv.FormatFloat(cfg.GetFloat64(flagName), 'f', -1, 64)
+
 	default:
 		// fallback: just use the string getter
 		raw = cfg.GetString(flagName)
 	}
 
-	// set flag value
 	if err := flags.Set(flagName, raw); err != nil {
 		horus.CheckErr(
 			horus.NewCategorizedHerror(
