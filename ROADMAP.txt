@@ -7,13 +7,11 @@
 cmd/cmdHibernate.go
   line 41     TODO   add feature to specify only launching notification
   line 42     TODO   allow `duration` or `time`
-  line 157    TODO   bind differnt types
-  line 268    TODO   exec & notify code
-cmd/cmdPurge.go
-  line 40     TODO   add completions for current probes
-  line 84     TODO   remove the log as well
+  line 70     TODO   review struct composition
+  line 162    TODO   bind differnt types
+  line 268    TODO   iterations not working properly
 cmd/cmdScan.go
   line 68     TODO   double check location of active probes
 cmd/root.go
-  line 64     TODO   add command to launch all jobs as recurrent, i.e., start session
+  line 66     TODO   add command to launch all jobs as recurrent, i.e., start session
 ==================================================
