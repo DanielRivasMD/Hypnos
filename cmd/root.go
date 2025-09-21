@@ -357,8 +357,7 @@ func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string)
 			continue
 		}
 		for _, key := range v.AllKeys() {
-			if strings.HasPrefix(key, "workflows.") {
-				wf := strings.TrimPrefix(key, "workflows.")
+			if wf, ok := strings.CutPrefix(key, "workflows."); ok {
 				if strings.HasPrefix(wf, toComplete) {
 					opts = append(opts, wf)
 				}
