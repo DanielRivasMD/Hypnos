@@ -19,35 +19,18 @@ package cmd
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"syscall"
-	"text/tabwriter"
 	"time"
 
+	"github.com/DanielRivasMD/domovoi"
 	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
+	"github.com/ttacon/chalk"
 )
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// probeEntry mirrors the JSON you wrote in hibernateCmd
-type probeEntry struct {
-	Probe      string        `json:"probe"`
-	LogPath    string        `json:"log_path"`
-	Duration   time.Duration `json:"duration"`
-	PID        int           `json:"pid"`
-	Quiescence time.Time     `json:"quiescence"`
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func init() {
-	rootCmd.AddCommand(scanCmd)
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -62,64 +45,66 @@ var scanCmd = &cobra.Command{
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+func init() {
+	rootCmd.AddCommand(scanCmd)
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func runScan(cmd *cobra.Command, args []string) {
 	const op = "hypnos.scan"
 
-	// TODO: double check location of active probes
-	fis, err := os.ReadDir(dirs.probe)
-	if err != nil {
-		horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading meta directory"))
-	}
-	if len(fis) == 0 {
+	// read the probe metadata directory
+	entries, err := domovoi.ReadDir(dirs.probe, flags.verbose)
+	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading probe directory"))
+
+	if len(entries) == 0 {
 		fmt.Println("no probes hibernating in ~/.hypnos/meta")
 		return
 	}
 
-	// load each .json, check pid
-	entries := make([]probeEntry, 0, len(fis))
-	for _, fi := range fis {
-		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".json") {
-			continue
-		}
-		path := filepath.Join(dirs.probe, fi.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "warning: cannot read %s: %v\n", fi.Name(), err)
-			continue
-		}
-		var m probeEntry
-		if err := json.Unmarshal(data, &m); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: invalid JSON in %s: %v\n", fi.Name(), err)
-			continue
-		}
-		entries = append(entries, m)
-	}
+	// print header
+	fmt.Printf(
+		"%-20s %-6s %-20s %-12s %s\n",
+		"NAME", "PID", "INVOKED", "DURATION", "STATUS",
+	)
 
-	// print table
-	w := tabwriter.NewWriter(os.Stdout, 4, 8, 2, ' ', 0)
-	fmt.Fprintln(w, "NAME\tPID\tINVOKED\tDURATION\tSTATUS")
-	now := time.Now()
-	for _, m := range entries {
-		// kill(pid, 0) to detect existence
-		running := true
-		if err := syscall.Kill(m.PID, 0); err != nil {
-			running = false
+	// iterate over metadata files
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
 		}
-		status := "ended"
-		if running {
-			status = "running"
+		name := strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
+
+		// load metadata
+		meta := loadProbeMeta(name)
+
+		// determine process status via `ps`
+		status := chalk.Red.Color("dead")
+		stateOut, err := exec.Command("ps", "-o", "state=", "-p", strconv.Itoa(meta.PID)).Output()
+		if err == nil {
+			state := strings.TrimSpace(string(stateOut))
+			switch {
+			case strings.HasPrefix(state, "T"):
+				status = chalk.Yellow.Color("limbo")
+			default:
+				status = chalk.Green.Color("alive")
+			}
 		}
-		// elapsed since invoked
-		age := now.Sub(m.Quiescence).Truncate(time.Second)
-		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\n",
-			m.Probe,
-			m.PID,
-			m.Quiescence.Format("2006-01-02 15:04:05"),
-			fmt.Sprintf("%s (%s ago)", m.Duration, age),
-			status,
+
+		// format invoked timestamp
+		invoked := meta.Quiescence.Format("2006-01-02 15:04:05")
+
+		// format duration (with age)
+		age := time.Since(meta.Quiescence).Truncate(time.Second)
+		duration := fmt.Sprintf("%s (%s ago)", meta.Duration, age)
+
+		// print row
+		fmt.Printf(
+			"%-20s %-6d %-20s %-12s %s\n",
+			meta.Probe, meta.PID, invoked, duration, status,
 		)
 	}
-	w.Flush()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
