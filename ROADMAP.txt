@@ -6,13 +6,14 @@
 
 ==================================================
 cmd/cmdHibernate.go
-  line 41     TODO   add feature to specify only launching notification
-  line 42     TODO   allow `duration` or `time`
-  line 70     TODO   review struct composition
-  line 162    TODO   bind differnt types
-  line 268    TODO   iterations not working properly
-cmd/cmdScan.go
-  line 68     TODO   double check location of active probes
+  line 40     TODO   add feature to specify only launching notification
+  line 41     TODO   allow `duration` or `time`
+  line 69     TODO   review struct composition
+  line 70     TODO   bind directly from flags?
+  line 165    TODO   bind differnt types
+  line 263    TODO   iterations not working properly
+  line 270    BUG    nofity-only
 cmd/root.go
   line 66     TODO   add command to launch all jobs as recurrent, i.e., start session
+  line 344    BUG    completion is detecting the names of the fields
 ==================================================
