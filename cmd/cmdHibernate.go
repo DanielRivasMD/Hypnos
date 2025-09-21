@@ -109,7 +109,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 
 	if len(args) == 1 {
 		// CONFIG MODE: pull everything from TOML
-		if verbose {
+		if flags.verbose {
 			fmt.Println("Running on Config mode...")
 		}
 
@@ -117,7 +117,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 		launcher.config = args[0]
 
 		// discover matching workflow file
-		files, err := domovoi.ReadDir(dirs.config, verbose)
+		files, err := domovoi.ReadDir(dirs.config, flags.verbose)
 		horus.CheckErr(err, horus.WithOp(op), horus.WithCategory("env_error"), horus.WithMessage("reading config dir"))
 		var foundV *viper.Viper
 		for _, f := range files {
@@ -168,7 +168,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 	} else {
 
 		// MANUAL MODE: require explicit flags
-		if verbose {
+		if flags.verbose {
 			fmt.Println("Running on Manual mode...")
 		}
 

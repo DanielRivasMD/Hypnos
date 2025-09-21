@@ -36,7 +36,7 @@ var helpScan = domovoi.FormatHelp(
 	"",
 )
 
-var helpStatis = domovoi.FormatHelp(
+var helpPurge = domovoi.FormatHelp(
 	"Daniel Rivas",
 	"danielrivasmd@gmail.com",
 	"Stops the named downtime instances\n"+

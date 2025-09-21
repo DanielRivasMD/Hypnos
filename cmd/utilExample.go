@@ -30,7 +30,7 @@ var exampleScan = domovoi.FormatExample(
 	[]string{"help"},
 )
 
-var exampleStasis = domovoi.FormatExample(
+var examplePurge = domovoi.FormatExample(
 	"hypnos",
 	[]string{"help"},
 )

@@ -50,7 +50,8 @@ func Execute() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var (
-	dirs configDirs
+	dirs  configDirs
+	flags hypnosFlags
 )
 
 type configDirs struct {
@@ -61,13 +62,18 @@ type configDirs struct {
 	probe  string
 }
 
+// TODO: add command to launch all jobs as recurrent, i.e., start session
+type hypnosFlags struct {
+	verbose bool
+
+	purgeAll   bool
+	purgeGroup string
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: add command to launch all jobs as recurrent, i.e., start session
-var verbose bool
-
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose diagnostics")
+	rootCmd.PersistentFlags().BoolVarP(&flags.verbose, "verbose", "v", false, "Enable verbose diagnostics")
 	cobra.OnInitialize(initConfigPaths)
 }
 
@@ -89,7 +95,7 @@ type probeMeta struct {
 
 func initConfigPaths() {
 	var err error
-	dirs.home, err = domovoi.FindHome(verbose)
+	dirs.home, err = domovoi.FindHome(flags.verbose)
 	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
 	dirs.hypnos = filepath.Join(dirs.home, ".hypnos")
 	dirs.config = filepath.Join(dirs.hypnos, "config")

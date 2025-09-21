@@ -54,7 +54,7 @@ func init() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func runAwaken(cmd *cobra.Command, args []string) {
-	createSubdirs(dirs, verbose)
+	createSubdirs(dirs, flags.verbose)
 	generateConfig(generateToml())
 }
 
