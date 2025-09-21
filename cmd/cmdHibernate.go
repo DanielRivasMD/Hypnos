@@ -269,14 +269,13 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	count := 0
 	for {
 		count++
-		// schedule and wait
+
 		done := make(chan struct{})
 		runDowntime(worker.duration, func() {
 			log("▸ timer fired, executing shell snippet")
 			if err := domovoi.ExecSh(worker.script); err != nil {
 				log("▸ command failed: %v", err)
 			}
-			log("▸ timer fired, sending notification")
 			if err := notify("Hypnos-"+worker.probe, "Downtime complete"); err != nil {
 				log("▸ notify failed: %v", err)
 			} else {
@@ -286,16 +285,15 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 		})
 		<-done
 
-		// TODO: if iterations flags
-		// if iterations specified, stop after that many
+		// Stop conditions
 		if worker.iterations > 0 && count >= worker.iterations {
 			break
 		}
-		// if not marked recurrent, run only once
-		if !worker.recurrent {
+		if worker.iterations == 0 && !worker.recurrent {
+			// single-shot mode
 			break
 		}
-		// otherwise loop again
+
 		log("▸ iteration %d complete, restarting timer", count)
 	}
 
@@ -306,7 +304,6 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 
 // spawnProbe forks off a new "hibernate-run" worker process, piping its output into the log
 func spawnProbe(meta *probeMeta) (int, error) {
-	// TODO: add error handlers
 	exe, _ := os.Executable()
 
 	args := []string{
@@ -316,11 +313,13 @@ func spawnProbe(meta *probeMeta) (int, error) {
 		"--script", meta.Script,
 		"--duration", meta.Duration.String(),
 	}
-	if meta.Recurrent {
-		args = append(args, "--recurrent")
-	}
+
+	// If iterations > 0, that implies recurrence
 	if meta.Iterations > 0 {
 		args = append(args, "--iterations", strconv.Itoa(meta.Iterations))
+	} else if meta.Recurrent {
+		// Only add --recurrent if infinite looping is desired
+		args = append(args, "--recurrent")
 	}
 
 	f, err := os.OpenFile(meta.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
@@ -331,7 +330,10 @@ func spawnProbe(meta *probeMeta) (int, error) {
 	cmd := exec.Command(exe, args...)
 	cmd.Stdout = f
 	cmd.Stderr = f
-	_ = cmd.Start()
+	if err := cmd.Start(); err != nil {
+		f.Close()
+		return 0, err
+	}
 	return cmd.Process.Pid, nil
 }
 
