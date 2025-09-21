@@ -19,7 +19,6 @@ package cmd
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -228,16 +227,8 @@ func runHibernate(cmd *cobra.Command, args []string) {
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("spawning worker"))
 	meta.PID = pid
 
-	// Persist metadata
-	metaFile := filepath.Join(dirs.probe, launcher.probe+".json")
-	f, err := os.Create(metaFile)
-	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("creating meta file"))
-	defer f.Close()
-	horus.CheckErr(
-		json.NewEncoder(f).Encode(meta),
-		horus.WithOp(op),
-		horus.WithMessage("encoding metadata"),
-	)
+	// Persist metadata (replaces manual JSON writing)
+	saveProbeMeta(meta)
 
 	fmt.Printf("%s: spawned downtime %s with PID %s\n",
 		chalk.Green.Color("OK:"),
