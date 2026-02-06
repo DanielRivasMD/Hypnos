@@ -347,7 +347,10 @@ func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
+
+	seen := make(map[string]struct{})
 	var opts []string
+
 	for _, fi := range files {
 		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".toml") {
 			continue
@@ -360,8 +363,14 @@ func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string)
 		}
 		for _, key := range v.AllKeys() {
 			if wf, ok := strings.CutPrefix(key, "workflows."); ok {
-				if strings.HasPrefix(wf, toComplete) {
-					opts = append(opts, wf)
+				parts := strings.Split(wf, ".")
+				name := parts[0]
+				if _, exists := seen[name]; exists {
+					continue
+				}
+				if strings.HasPrefix(name, toComplete) {
+					opts = append(opts, name)
+					seen[name] = struct{}{}
 				}
 			}
 		}
