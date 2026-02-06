@@ -35,7 +35,7 @@ import (
 
 var purgeCmd = &cobra.Command{
 	Use:     "purge " + chalk.Dim.TextStyle(chalk.Italic.TextStyle("[probe]")),
-	Short:   "Terminate and clean up probes",
+	Short:   "Terminate & clean up probes",
 	Long:    helpPurge,
 	Example: examplePurge,
 

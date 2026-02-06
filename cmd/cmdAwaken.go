@@ -32,7 +32,7 @@ import (
 
 var awakenCmd = &cobra.Command{
 	Use:     "awaken",
-	Short:   "",
+	Short:   "Create hypnos directories",
 	Long:    helpAwaken,
 	Example: exampleAwaken,
 
