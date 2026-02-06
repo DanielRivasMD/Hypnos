@@ -8,6 +8,7 @@ Minimalist CLI for scheduling "downtime" timers that run scripts or send notific
 
 Lifecycle:
 
+```
 ┌──────────────┐
 │ hypnos awaken│  → creates directories + example config
 └───────┬──────┘
@@ -46,7 +47,7 @@ Lifecycle:
 ┌──────────────┐
 │ hypnos stasis│ → kills process + removes files
 └──────────────┘
-
+```
 
 #### awaken
 
@@ -112,13 +113,14 @@ Lists all active or completed probes.
 
     hypnos scan
 
-It:
-
 - Reads all *.json metadata files under ~/.hypnos/probe
 - Checks each PID using ps
 - Prints:
 
-    NAME    GROUP   PID   INVOKED   STATUS
+|---------------------------------------|
+| NAME | GROUP | PID | INVOKED | STATUS |
+|---------------------------------------|
+
 
 Statuses:
 
