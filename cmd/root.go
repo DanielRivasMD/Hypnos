@@ -69,8 +69,8 @@ type hypnosFlags struct {
 
 	configOutput string
 
-	purgeAll   bool
-	purgeGroup string
+	stasisAll   bool
+	stasisGroup string
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

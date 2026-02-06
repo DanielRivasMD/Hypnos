@@ -33,45 +33,45 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var purgeCmd = &cobra.Command{
-	Use:     "purge " + chalk.Dim.TextStyle(chalk.Italic.TextStyle("[probe]")),
+var stasisCmd = &cobra.Command{
+	Use:     "stasis " + chalk.Dim.TextStyle(chalk.Italic.TextStyle("[probe]")),
 	Short:   "Terminate & clean up probes",
-	Long:    helpPurge,
-	Example: examplePurge,
+	Long:    helpStasis,
+	Example: exampleStasis,
 
 	Args:              cobra.MaximumNArgs(1),
 	ValidArgsFunction: completeProbeNames,
 
-	Run: runPurge,
+	Run: runStasis,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func init() {
-	rootCmd.AddCommand(purgeCmd)
+	rootCmd.AddCommand(stasisCmd)
 
-	purgeCmd.Flags().BoolVar(&flags.purgeAll, "all", false, "Purge all probes")
-	purgeCmd.Flags().StringVar(&flags.purgeGroup, "group", "", "Purge all probes in a specific group")
+	stasisCmd.Flags().BoolVar(&flags.stasisAll, "all", false, "stasis all probes")
+	stasisCmd.Flags().StringVar(&flags.stasisGroup, "group", "", "stasis all probes in a specific group")
 
 	horus.CheckErr(
-		purgeCmd.RegisterFlagCompletionFunc("group", completeProbeGroups),
-		horus.WithOp("purge.init"),
+		stasisCmd.RegisterFlagCompletionFunc("group", completeProbeGroups),
+		horus.WithOp("stasis.init"),
 		horus.WithMessage("registering group completion"),
 	)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func runPurge(cmd *cobra.Command, args []string) {
-	const op = "hypnos.purge"
+func runStasis(cmd *cobra.Command, args []string) {
+	const op = "hypnos.stasis"
 
 	switch {
-	case flags.purgeAll:
-		purgeAllProbes()
-	case flags.purgeGroup != "":
-		purgeGroupProbes(flags.purgeGroup)
+	case flags.stasisAll:
+		stasisAllProbes()
+	case flags.stasisGroup != "":
+		stasisGroupProbes(flags.stasisGroup)
 	case len(args) == 1:
-		purgeProbe(args[0])
+		stasisProbe(args[0])
 	default:
 		horus.CheckErr(
 			errors.New(""),
@@ -87,8 +87,8 @@ func runPurge(cmd *cobra.Command, args []string) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func purgeProbe(name string) {
-	const op = "hypnos.purge"
+func stasisProbe(name string) {
+	const op = "hypnos.stasis"
 
 	meta := loadProbeMeta(name)
 
@@ -123,20 +123,20 @@ func purgeProbe(name string) {
 		horus.WithMessage("removing log file"),
 	)
 
-	fmt.Printf("%s purged probe %q\n", chalk.Green.Color("OK:"), meta.Probe)
+	fmt.Printf("%s stasisd probe %q\n", chalk.Green.Color("OK:"), meta.Probe)
 }
 
-func purgeGroupProbes(group string) {
+func stasisGroupProbes(group string) {
 	for _, metaFile := range listProbeMetaFiles() {
 		if matchProbeGroup(metaFile, group) {
-			purgeProbe(stripProbeName(metaFile))
+			stasisProbe(stripProbeName(metaFile))
 		}
 	}
 }
 
-func purgeAllProbes() {
+func stasisAllProbes() {
 	for _, metaFile := range listProbeMetaFiles() {
-		purgeProbe(stripProbeName(metaFile))
+		stasisProbe(stripProbeName(metaFile))
 	}
 }
 

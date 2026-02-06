@@ -42,7 +42,7 @@ var helpScan = domovoi.FormatHelp(
 		"probe name, group, PID, invocation time, duration, and status.",
 )
 
-var helpPurge = domovoi.FormatHelp(
+var helpStasis = domovoi.FormatHelp(
 	"Daniel Rivas",
 	"danielrivasmd@gmail.com",
 	"Stops one or more downtime probes. Sends SIGTERM to each worker process, then removes its\n"+
