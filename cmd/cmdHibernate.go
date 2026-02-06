@@ -124,7 +124,6 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 		// declare workflow
 		launcher.config = args[0]
 
-		// discover matching workflow file
 		files, err := domovoi.ReadDir(dirs.config, flags.verbose)
 		horus.CheckErr(err, horus.WithOp(op), horus.WithCategory("env_error"), horus.WithMessage("reading config dir"))
 		var foundV *viper.Viper
@@ -151,7 +150,6 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 			)
 		}
 
-		// defaults
 		if launcher.probe == "" {
 			launcher.probe = launcher.config
 			horus.CheckErr(cmd.Flags().Set("probe", launcher.probe), horus.WithOp(op), horus.WithMessage("setting default --probe"))
@@ -167,7 +165,6 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 		bindFlag(cmd, "recurrent", wf)
 		bindFlag(cmd, "iterations", wf)
 
-		// log default
 		if !cmd.Flags().Changed("log") {
 			launcher.log = launcher.config
 			horus.CheckErr(cmd.Flags().Set("log", launcher.log), horus.WithOp(op), horus.WithMessage("setting default --log"))
@@ -231,7 +228,6 @@ func runHibernate(cmd *cobra.Command, args []string) {
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("spawning worker"))
 	meta.PID = pid
 
-	// Persist metadata (replaces manual JSON writing)
 	saveProbeMeta(meta)
 
 	fmt.Printf("%s: spawned downtime %s with PID %s\n",
@@ -246,7 +242,6 @@ func runHibernate(cmd *cobra.Command, args []string) {
 func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.work"
 
-	// open log
 	logFile := filepath.Join(dirs.log, worker.log+".log")
 	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("opening log file"))
@@ -288,12 +283,10 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 		})
 		<-done
 
-		// Stop conditions
 		if worker.iterations > 0 && count >= worker.iterations {
 			break
 		}
 		if worker.iterations == 0 && !worker.recurrent {
-			// single-shot mode
 			break
 		}
 
@@ -305,7 +298,6 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// spawnProbe forks off a new "hibernate-run" worker process, piping its output into the log
 func spawnProbe(meta *probeMeta) (int, error) {
 	exe, _ := os.Executable()
 
@@ -317,11 +309,9 @@ func spawnProbe(meta *probeMeta) (int, error) {
 		"--duration", meta.Duration.String(),
 	}
 
-	// If iterations > 0, that implies recurrence
 	if meta.Iterations > 0 {
 		args = append(args, "--iterations", strconv.Itoa(meta.Iterations))
 	} else if meta.Recurrent {
-		// Only add --recurrent if infinite looping is desired
 		args = append(args, "--recurrent")
 	}
 	if meta.Notify {
@@ -343,24 +333,17 @@ func spawnProbe(meta *probeMeta) (int, error) {
 	return cmd.Process.Pid, nil
 }
 
-// runDowntime waits for d, then invokes onDone in its own goroutine,
-// without creating a sleeping goroutine up front.
 func runDowntime(d time.Duration, onDone func()) {
 	time.AfterFunc(d, onDone)
 }
 
-// notify sends a macOS user notification via one of:
-// 1) terminal-notifier (preferred, with -sender for GUI session access)
-// 2) AppleScript (osascript fallback)
-// Returns an error if no supported notifier is found or the command fails.
 func notify(title, msg string) error {
-	// 1) Try terminal-notifier if installed
 	if tnPath, err := exec.LookPath("terminal-notifier"); err == nil {
 		cmd := exec.Command(
 			tnPath,
 			"-title", title,
 			"-message", msg,
-			"-sender", "com.apple.Terminal", // ensure Notification Center accepts it
+			"-sender", "com.apple.Terminal",
 		)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("terminal-notifier error: %v – %s", err, output)
@@ -368,9 +351,7 @@ func notify(title, msg string) error {
 		return nil
 	}
 
-	// 2) Fallback to AppleScript via osascript
 	if osaPath, err := exec.LookPath("osascript"); err == nil {
-		// display notification "<msg>" with title "<title>"
 		script := fmt.Sprintf(`display notification %q with title %q`, msg, title)
 		cmd := exec.Command(osaPath, "-e", script)
 		if output, err := cmd.CombinedOutput(); err != nil {

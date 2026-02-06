@@ -57,7 +57,6 @@ func runAwaken(cmd *cobra.Command, args []string) {
 func createSubdirs(d configDirs, verbose bool) {
 	const op = "hypnos.awaken"
 
-	// name each for nicer error messages
 	toCreate := []struct {
 		label, path string
 	}{
@@ -82,7 +81,6 @@ func createSubdirs(d configDirs, verbose bool) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// generateToml prints a sample hypnos TOML config with inline comments and annotations
 func generateToml() string {
 	lines := []string{
 		"# hypnos workflow configuration",

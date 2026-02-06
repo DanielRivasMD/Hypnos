@@ -90,10 +90,8 @@ func runPurge(cmd *cobra.Command, args []string) {
 func purgeProbe(name string) {
 	const op = "hypnos.purge"
 
-	// load metadata via helper
 	meta := loadProbeMeta(name)
 
-	// try terminating process, but proceed if already gone
 	if err := syscall.Kill(meta.PID, syscall.SIGTERM); err != nil {
 		if err == syscall.ESRCH {
 			fmt.Printf("warning: process %d for %q not running\n", meta.PID, name)
@@ -105,7 +103,6 @@ func purgeProbe(name string) {
 		fmt.Printf("%s sent SIGTERM to PID %d for %q\n", chalk.Green.Color("OK:"), meta.PID, name)
 	}
 
-	// remove metadata JSON file
 	horus.CheckErr(
 		func() error {
 			_, err := domovoi.RemoveFile(filepath.Join(dirs.probe, name+".json"), flags.verbose)(filepath.Join(dirs.probe, name+".json"))
@@ -116,7 +113,6 @@ func purgeProbe(name string) {
 		horus.WithMessage("removing metadata file"),
 	)
 
-	// remove log file
 	horus.CheckErr(
 		func() error {
 			_, err := domovoi.RemoveFile(meta.LogPath, flags.verbose)(meta.LogPath)

@@ -82,7 +82,6 @@ func init() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// probeMeta holds persisted state for each probe invocation
 type probeMeta struct {
 	Probe      string        `json:"probe"`
 	Group      string        `json:"group"`
@@ -118,14 +117,12 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 	const op = "cli.bindFlag"
 	flags := cmd.Flags()
 
-	// only bind if not manually set & config has key
 	if flags.Changed(flagName) || !cfg.IsSet(flagName) {
 		return
 	}
 
 	f := flags.Lookup(flagName)
 	if f == nil {
-		// no such flag
 		return
 	}
 
@@ -141,7 +138,6 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 		raw = strconv.FormatBool(cfg.GetBool(flagName))
 
 	case "duration":
-		// viper stores durations as string, so parse and re-stringify
 		val := cfg.GetString(flagName)
 		if _, err := time.ParseDuration(val); err == nil {
 			raw = val
@@ -162,7 +158,6 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 		raw = strconv.FormatFloat(cfg.GetFloat64(flagName), 'f', -1, 64)
 
 	default:
-		// fallback: just use the string getter
 		raw = cfg.GetString(flagName)
 	}
 
@@ -184,11 +179,9 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// saveProbeMeta writes probe metadata to ~/.hypnos/probe/<name>.json
 func saveProbeMeta(meta *probeMeta) {
 	const op = "probe.saveMeta"
 
-	// ensure the probe directory exists
 	horus.CheckErr(
 		domovoi.CreateDir(dirs.probe, flags.verbose),
 		horus.WithOp(op),
@@ -199,7 +192,6 @@ func saveProbeMeta(meta *probeMeta) {
 		}),
 	)
 
-	// marshal the metadata
 	data, err := json.MarshalIndent(meta, "", "  ")
 	horus.CheckErr(
 		err,
@@ -212,7 +204,6 @@ func saveProbeMeta(meta *probeMeta) {
 		}),
 	)
 
-	// write the file
 	path := filepath.Join(dirs.probe, meta.Probe+".json")
 	horus.CheckErr(
 		os.WriteFile(path, data, 0o644),
@@ -225,13 +216,11 @@ func saveProbeMeta(meta *probeMeta) {
 	)
 }
 
-// loadProbeMeta reads ~/.hypnos/meta/<name>.json
 func loadProbeMeta(name string) *probeMeta {
 	const op = "hypnos.loadProbeMeta"
 
 	path := filepath.Join(dirs.probe, name+".json")
 
-	// read the file
 	data, err := os.ReadFile(path)
 	horus.CheckErr(
 		err,
@@ -244,7 +233,6 @@ func loadProbeMeta(name string) *probeMeta {
 		}),
 	)
 
-	// unmarshal into struct
 	var meta probeMeta
 	horus.CheckErr(
 		json.Unmarshal(data, &meta),
@@ -262,7 +250,6 @@ func loadProbeMeta(name string) *probeMeta {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// listProbeMetaFiles returns the full paths of all probe metadata JSON files
 func listProbeMetaFiles() []string {
 	var files []string
 	entries, err := os.ReadDir(dirs.probe)
@@ -278,8 +265,6 @@ func listProbeMetaFiles() []string {
 	return files
 }
 
-// stripProbeName takes a metadata file path and returns the bare probe name
-// e.g. ~/.hypnos/meta/pmail.json -> "pmail"
 func stripProbeName(metaFile string) string {
 	base := filepath.Base(metaFile)
 	return strings.TrimSuffix(base, ".json")
@@ -299,7 +284,6 @@ func matchProbeGroup(metaFile string, group string) bool {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// completeProbeNames suggests currently known probe names (from ~/.hypnos/meta/*.json)
 func completeProbeNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	var names []string
 

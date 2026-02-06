@@ -54,7 +54,6 @@ func init() {
 func runScan(cmd *cobra.Command, args []string) {
 	const op = "hypnos.scan"
 
-	// read the probe metadata directory
 	entries, err := domovoi.ReadDir(dirs.probe, flags.verbose)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading probe directory"))
 
@@ -63,23 +62,19 @@ func runScan(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// print header
 	fmt.Printf(
 		"%-20s %-15s %-6s %-20s %s\n",
 		"NAME", "GROUP", "PID", "INVOKED", "STATUS",
 	)
 
-	// iterate over metadata files
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
 		name := strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
 
-		// load metadata
 		meta := loadProbeMeta(name)
 
-		// determine process status via `ps`
 		status := chalk.Red.Color("mortem")
 		stateOut, err := exec.Command("ps", "-o", "state=", "-p", strconv.Itoa(meta.PID)).Output()
 		if err == nil {
@@ -92,14 +87,11 @@ func runScan(cmd *cobra.Command, args []string) {
 			}
 		}
 
-		// format invoked timestamp
 		invoked := meta.Quiescence.Format("2006-01-02 15:04:05")
 
-		// format duration (with age)
 		age := time.Since(meta.Quiescence).Truncate(time.Second)
 		duration := fmt.Sprintf("%s (%s ago)", meta.Duration, age)
 
-		// print row
 		fmt.Printf(
 			"%-20s %-6d %-20s %-12s %s\n",
 			meta.Probe, meta.PID, invoked, duration, status,
