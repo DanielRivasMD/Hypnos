@@ -4,49 +4,52 @@
 
 ## Overview
 Minimalist CLI for scheduling "downtime" timers that run scripts or send notifications.
-`hypnos` spawns background workers, keeps logs, tracks state, and lets you inspect or cancel timers — all under `~/.hypnos`.
+
+`hypnos` spawns background workers, keeps logs, tracks state, and lets inspecting or canceling timers — all under `~/.hypnos`.
 
 Lifecycle:
 
 ```
-┌──────────────┐
-│ hypnos awaken│  → creates directories + example config
-└───────┬──────┘
+┌───────────────┐
+│ hypnos awaken │  → creates directories + example config
+└───────┬───────┘
         │
         ▼
-┌──────────────────────────────┐
-│ hypnos hibernate <workflow>  │ → launcher loads config or flags
-└───────┬──────────────────────┘
+┌─────────────────────────────┐
+│ hypnos hibernate <workflow> │ → launcher loads config or flags
+└───────┬─────────────────────┘
         │
         ▼
-┌──────────────┐
-│ spawnProbe() │ → starts worker process
-└───────┬──────┘
+┌──────────────────────────────────────────┐
+│ ┌──────────────┐                         │
+│ │ spawnProbe() │ → starts worker process │
+│ └──────┬───────┘                         │ 
+│        │                                 │
+│        ▼                                 │
+│ ┌───────────────────────────────┐        │
+│ │ hypnos hibernate-run (worker) │        │
+│ │ - sleeps                      │        │
+│ │ - executes script             │        │
+│ │ - sends notifications         │        │
+│ │ - logs output                 │        │
+│ │ - repeats if needed           │        │
+│ └──────┬────────────────────────┘        │
+│        │                                 │
+│        ▼                                 │
+│ ┌────────────────┐                       │
+│ │ probeMeta.json │ → updated metadata    │
+│ └────────────────┘                       │
+└───────┬──────────────────────────────────┘
         │
         ▼
-┌──────────────────────────────┐
-│ hypnos hibernate-run (worker)│
-│ - sleeps                     │
-│ - executes script            │
-│ - sends notifications        │
-│ - logs output                │
-│ - repeats if needed          │
-└───────┬──────────────────────┘
+┌─────────────┐
+│ hypnos scan │ → monitors status
+└───────┬─────┘
         │
         ▼
-┌──────────────┐
-│ probeMeta.json│ → updated metadata
-└───────┬──────┘
-        │
-        ▼
-┌──────────────┐
-│ hypnos scan  │ → monitors status
-└───────┬──────┘
-        │
-        ▼
-┌──────────────┐
-│ hypnos stasis│ → kills process + removes files
-└──────────────┘
+┌───────────────┐
+│ hypnos stasis │ → kills process + removes files
+└───────────────┘
 ```
 
 #### awaken
@@ -117,10 +120,11 @@ Lists all active or completed probes.
 - Checks each PID using ps
 - Prints:
 
+```
 |---------------------------------------|
 | NAME | GROUP | PID | INVOKED | STATUS |
 |---------------------------------------|
-
+```
 
 Statuses:
 
