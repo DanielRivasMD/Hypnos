@@ -28,7 +28,7 @@ var helpAwaken = domovoi.FormatHelp(
 var helpHibernate = domovoi.FormatHelp(
 	"Daniel Rivas",
 	"danielrivasmd@gmail.com",
-	"Schedules a downtime timer. You may provide all flags manually, or pass a workflow name to\n"+
+	"Schedules a downtime timer. All flags can be provided manually, or passed a workflow name to\n"+
 		"load defaults from ~/.hypnos/config/*.toml. The launcher spawns a hidden worker process\n"+
 		"that sleeps for the specified duration, optionally executes a script, sends a notification,\n"+
 		"and repeats based on --iterations or --recurrent. Metadata is saved under ~/.hypnos/probe.",
