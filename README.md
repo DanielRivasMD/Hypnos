@@ -1,16 +1,16 @@
-# hypnos, scheduled silence with intent
+# hypnos, scheduled dreams with intent
 
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 ## Overview
-Minimalist CLI for scheduling "downtime" timers that run scripts or send notifications.
+Minimalist CLI for scheduling "downtime" timers that run scripts or send notifications
 
-`hypnos` spawns background workers, keeps logs, tracks state, and lets inspecting or canceling timers — all under `~/.hypnos`.
+`hypnos` spawns background workers, keeps logs, tracks state, and lets inspecting or canceling timers — all under `~/.hypnos`
 
 # Technical Architecture
 
 Hypnos is a Go-based CLI that cleanly separates its launcher from its worker,
-persists per-instance state on disk, and schedules timers in-process.
+persists per-instance state on disk, and schedules timers in-process
 
 ## Core Framework
 
@@ -24,9 +24,6 @@ persists per-instance state on disk, and schedules timers in-process.
     ├─ config/   # workflow definitions (*.toml)
     ├─ log/      # logs for each probe (*.log)
     └─ probe/    # metadata for each running probe (*.json)
-
-
-Logic schematic:
 
 ```
 ┌───────────────┐
@@ -101,12 +98,7 @@ Logic schematic:
 
     Go:  go install github.com/DanielRivasMD/Hypnos@latest
 
-### Pre-built Binaries
-
-Download from Releases.
-
-
 ## License
 
 Copyright (c) 2025
-See the LICENSE file for license details.
+See the LICENSE file for license details
