@@ -3,9 +3,12 @@
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 ## Overview
-Minimalist CLI for scheduling "downtime" timers that run scripts or send notifications
 
-`hypnos` spawns background workers, keeps logs, tracks state, and lets inspecting or canceling timers — all under `~/.hypnos`
+Minimalist CLI for scheduling "downtime" timers that run scripts or send
+notifications
+
+`hypnos` spawns background workers, keeps logs, tracks state, and lets
+inspecting or canceling timers — all under `~/.hypnos`
 
 # Technical Architecture
 
@@ -15,8 +18,8 @@ persists per-instance state on disk, and schedules timers in-process
 ## Core Framework
 
 - Built with Cobra for command definitions and Viper for loading TOML workflows
-- The launcher forks itself via os.Executable() + exec.Command(),
-  invoking a hidden "hibernate-run" subcommand as the detached worker
+- The launcher forks itself via os.Executable() + exec.Command(), invoking a
+  hidden "hibernate-run" subcommand as the detached worker
 
 ## Storage Layout (~/.hypnos/)
 
@@ -39,7 +42,7 @@ persists per-instance state on disk, and schedules timers in-process
 ┌──────────────────────────────────────────┐
 │ ┌──────────────┐                         │
 │ │ spawnProbe() │ → starts worker process │
-│ └──────┬───────┘                         │ 
+│ └──────┬───────┘                         │
 │        │                                 │
 │        ▼                                 │
 │ ┌───────────────────────────────┐        │
@@ -68,7 +71,6 @@ persists per-instance state on disk, and schedules timers in-process
 └───────────────┘
 ```
 
-
 ## Workflow Configuration Example
 
     # ~/.hypnos/config/tasks.toml
@@ -91,7 +93,6 @@ persists per-instance state on disk, and schedules timers in-process
     log = "focus"
     probe = "pfocus"
 
-
 ## Installation
 
 ### Language-Specific
@@ -101,4 +102,5 @@ persists per-instance state on disk, and schedules timers in-process
 ## License
 
 Copyright (c) 2025
-See the LICENSE file for license details
+
+See the [LICENSE](LICENSE) file for license details
