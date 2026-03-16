@@ -8,70 +8,71 @@ Minimalist CLI for scheduling "downtime" timers that run scripts or send
 notifications
 
 `hypnos` spawns background workers, keeps logs, tracks state, and lets
-inspecting or canceling timers — all under `~/.hypnos`
+inspecting or canceling timers
 
-# Technical Architecture
+## Technical Architecture
 
 Hypnos is a Go-based CLI that cleanly separates its launcher from its worker,
 persists per-instance state on disk, and schedules timers in-process
 
-## Core Framework
+### Core Framework
 
-- Built with Cobra for command definitions and Viper for loading TOML workflows
+- Built with **Cobra** for command definitions & **Viper** for loading TOML
+  workflows
 - The launcher forks itself via os.Executable() + exec.Command(), invoking a
   hidden "hibernate-run" subcommand as the detached worker
 
-## Storage Layout (~/.hypnos/)
+### Logic Schematic
+
+    ┌───────────────┐
+    │ hypnos awaken │  → creates directories + example config
+    └───────┬───────┘
+            │
+            ▼
+    ┌─────────────────────────────┐
+    │ hypnos hibernate <workflow> │ → launcher loads config or flags
+    └───────┬─────────────────────┘
+            │
+            ▼
+    ┌──────────────────────────────────────────┐
+    │ ┌──────────────┐                         │
+    │ │ spawnProbe() │ → starts worker process │
+    │ └──────┬───────┘                         │
+    │        │                                 │
+    │        ▼                                 │
+    │ ┌───────────────────────────────┐        │
+    │ │ hypnos hibernate-run (worker) │        │
+    │ │ - sleeps                      │        │
+    │ │ - executes script             │        │
+    │ │ - sends notifications         │        │
+    │ │ - logs output                 │        │
+    │ │ - repeats if needed           │        │
+    │ └──────┬────────────────────────┘        │
+    │        │                                 │
+    │        ▼                                 │
+    │ ┌────────────────┐                       │
+    │ │ probeMeta.json │ → updated metadata    │
+    │ └────────────────┘                       │
+    └───────┬──────────────────────────────────┘
+            │
+            ▼
+    ┌─────────────┐
+    │ hypnos scan │ → monitors status
+    └───────┬─────┘
+            │
+            ▼
+    ┌───────────────┐
+    │ hypnos stasis │ → kills process + removes files
+    └───────────────┘
+
+### Storage Layout (~/.hypnos/)
 
     ~/.hypnos/
     ├─ config/   # workflow definitions (*.toml)
     ├─ log/      # logs for each probe (*.log)
     └─ probe/    # metadata for each running probe (*.json)
 
-```
-┌───────────────┐
-│ hypnos awaken │  → creates directories + example config
-└───────┬───────┘
-        │
-        ▼
-┌─────────────────────────────┐
-│ hypnos hibernate <workflow> │ → launcher loads config or flags
-└───────┬─────────────────────┘
-        │
-        ▼
-┌──────────────────────────────────────────┐
-│ ┌──────────────┐                         │
-│ │ spawnProbe() │ → starts worker process │
-│ └──────┬───────┘                         │
-│        │                                 │
-│        ▼                                 │
-│ ┌───────────────────────────────┐        │
-│ │ hypnos hibernate-run (worker) │        │
-│ │ - sleeps                      │        │
-│ │ - executes script             │        │
-│ │ - sends notifications         │        │
-│ │ - logs output                 │        │
-│ │ - repeats if needed           │        │
-│ └──────┬────────────────────────┘        │
-│        │                                 │
-│        ▼                                 │
-│ ┌────────────────┐                       │
-│ │ probeMeta.json │ → updated metadata    │
-│ └────────────────┘                       │
-└───────┬──────────────────────────────────┘
-        │
-        ▼
-┌─────────────┐
-│ hypnos scan │ → monitors status
-└───────┬─────┘
-        │
-        ▼
-┌───────────────┐
-│ hypnos stasis │ → kills process + removes files
-└───────────────┘
-```
-
-## Workflow Configuration Example
+### Workflow Configuration Example
 
     # ~/.hypnos/config/tasks.toml
 
