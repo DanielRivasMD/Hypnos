@@ -1,3 +1,5 @@
+- what about an infinite work to keep jobs in the background, such as kanata server?
+
 - add a master control for working day => hypnos regular work - launch mail, take breaks, call people
 - set a timer for taking breaks
 - set time range for recurrent jobs => from 7:00 - 17:00, 55mins breaks
