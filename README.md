@@ -4,23 +4,17 @@
 
 ## Overview
 
-Minimalist CLI for scheduling "downtime" timers that run scripts or send
-notifications
+CLI for scheduling "downtime" timers that run scripts or send notifications
 
-`hypnos` spawns background workers, keeps logs, tracks state, and lets
+`hypnos` spawns background sleepers, keeping logs, tracking state, and letting
 inspecting or canceling timers
-
-## Technical Architecture
-
-Hypnos is a Go-based CLI that cleanly separates its launcher from its worker,
-persists per-instance state on disk, and schedules timers in-process
 
 ### Core Framework
 
 - Built with **Cobra** for command definitions & **Viper** for loading TOML
   workflows
 - The launcher forks itself via os.Executable() + exec.Command(), invoking a
-  hidden "hibernate-run" subcommand as the detached worker
+  hidden "hibernate-private" subcommand as the detached sleeper
 
 ### Logic Schematic
 
@@ -34,26 +28,26 @@ persists per-instance state on disk, and schedules timers in-process
     └───────┬─────────────────────┘
             │
             ▼
-    ┌──────────────────────────────────────────┐
-    │ ┌──────────────┐                         │
-    │ │ spawnProbe() │ → starts worker process │
-    │ └──────┬───────┘                         │
-    │        │                                 │
-    │        ▼                                 │
-    │ ┌───────────────────────────────┐        │
-    │ │ hypnos hibernate-run (worker) │        │
-    │ │ - sleeps                      │        │
-    │ │ - executes script             │        │
-    │ │ - sends notifications         │        │
-    │ │ - logs output                 │        │
-    │ │ - repeats if needed           │        │
-    │ └──────┬────────────────────────┘        │
-    │        │                                 │
-    │        ▼                                 │
-    │ ┌────────────────┐                       │
-    │ │ probeMeta.json │ → updated metadata    │
-    │ └────────────────┘                       │
-    └───────┬──────────────────────────────────┘
+    ┌───────────────────────────────────────────┐
+    │ ┌──────────────┐                          │
+    │ │ spawnProbe() │ → starts sleeper process │
+    │ └──────┬───────┘                          │
+    │        │                                  │
+    │        ▼                                  │
+    │ ┌────────────────────────────────┐        │
+    │ │ hypnos hibernate-run (sleeper) │        │
+    │ │ - sleeps                       │        │
+    │ │ - executes script              │        │
+    │ │ - sends notifications          │        │
+    │ │ - logs output                  │        │
+    │ │ - repeats if needed            │        │
+    │ └──────┬─────────────────────────┘        │
+    │        │                                  │
+    │        ▼                                  │
+    │ ┌────────────────┐                        │
+    │ │ probeMeta.json │ → updated metadata     │
+    │ └────────────────┘                        │
+    └───────┬───────────────────────────────────┘
             │
             ▼
     ┌─────────────┐
