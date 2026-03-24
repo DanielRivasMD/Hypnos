@@ -1,3 +1,9 @@
+[workflows.greet]
+group = "test"
+script = "echo 'hello probe'"
+duration = "1s"
+log = "greet"
+
 [workflows.mail]
 group = "work"
 script = "open -a 'Canary Mail'"
@@ -9,3 +15,9 @@ group = "work"
 script = "sleep 10 && pmset displaysleepnow"
 duration = "1m"
 log = "break"
+
+[workflows.kanata]
+grpup = "system"
+script = "kanata --cfg $HOME/Factorem/dotfiles/in-situ/kanata/config.kbd"
+carbonite = true
+log = "kanata"
