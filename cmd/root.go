@@ -19,12 +19,14 @@ package cmd
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DanielRivasMD/domovoi"
@@ -36,24 +38,26 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var rootCmd = &cobra.Command{
-	Use:     "hypnos",
-	Long:    helpRoot,
-	Example: exampleRoot,
-}
+//go:embed docs.json
+var docsFS embed.FS
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func Execute() {
-	horus.CheckErr(rootCmd.Execute())
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-var (
-	dirs  configDirs
-	flags hypnosFlags
+const (
+	APP     = "hypnos"
+	VERSION = "v0.1.0"
+	AUTHOR  = "Daniel Rivas"
+	EMAIL   = "<danielrivasmd@gmail.com>"
 )
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+type hypnosFlags struct {
+	verbose      bool
+	configOutput string
+	stasisAll    bool
+	stasisGroup  string
+}
 
 type configDirs struct {
 	home   string
@@ -63,43 +67,63 @@ type configDirs struct {
 	probe  string
 }
 
-// TODO: add command to launch all jobs as recurrent, i.e., start session
-type hypnosFlags struct {
-	verbose bool
+var (
+	onceRoot  sync.Once
+	rootCmd   *cobra.Command
+	rootFlags hypnosFlags
+	dirs      configDirs
+)
 
-	configOutput string
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	stasisAll   bool
-	stasisGroup string
+func InitDocs() {
+	info := domovoi.AppInfo{
+		Name:    APP,
+		Version: VERSION,
+		Author:  AUTHOR,
+		Email:   EMAIL,
+	}
+	domovoi.SetGlobalDocsConfig(docsFS, info)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func init() {
-	rootCmd.PersistentFlags().BoolVarP(&flags.verbose, "verbose", "v", false, "Enable verbose diagnostics")
-	cobra.OnInitialize(initConfigPaths)
+func GetRootCmd() *cobra.Command {
+	onceRoot.Do(func() {
+		d := horus.Must(domovoi.GlobalDocs())
+		var err error
+		rootCmd, err = d.MakeCmd("root", nil)
+		horus.CheckErr(err)
+
+		rootCmd.PersistentFlags().BoolVarP(&rootFlags.verbose, "verbose", "v", false, "Enable verbose diagnostics")
+		rootCmd.Flags().StringVar(&rootFlags.configOutput, "config-output", "", "Write example config to file")
+		rootCmd.Version = VERSION
+
+		cobra.OnInitialize(initConfigPaths)
+	})
+	return rootCmd
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type probeMeta struct {
-	Probe      string        `json:"probe"`
-	Group      string        `json:"group"`
-	Script     string        `json:"script"`
-	LogPath    string        `json:"log_path"`
-	Duration   time.Duration `json:"duration"`
-	Recurrent  bool          `json:"recurrent"`
-	Iterations int           `json:"iterations"`
-	PID        int           `json:"pid"`
-	Quiescence time.Time     `json:"quiescence"`
-	Notify     bool          `json:"notify"`
+func BuildCommands() {
+	root := GetRootCmd()
+	root.AddCommand(
+		AwakenCmd(),
+		CompletionCmd(),
+		HibernateCmd(),
+		HibernateWorkerCmd(),
+		IdentityCmd(),
+		ScanCmd(),
+		StasisCmd(),
+	)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func initConfigPaths() {
 	var err error
-	dirs.home, err = domovoi.FindHome(flags.verbose)
+	dirs.home, err = domovoi.FindHome(rootFlags.verbose)
 	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
 	dirs.hypnos = filepath.Join(dirs.home, ".hypnos")
 	dirs.config = filepath.Join(dirs.hypnos, "config")
@@ -107,12 +131,13 @@ func initConfigPaths() {
 	dirs.probe = filepath.Join(dirs.hypnos, "probe")
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func onelineErr(er string) string {
 	return chalk.Bold.TextStyle(chalk.Red.Color(er))
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// bindFlag reads a value from a Viper config and sets the corresponding flag if not already changed.
 func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 	const op = "cli.bindFlag"
 	flags := cmd.Flags()
@@ -130,13 +155,10 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 	switch f.Value.Type() {
 	case "string":
 		raw = cfg.GetString(flagName)
-
 	case "int":
 		raw = strconv.Itoa(cfg.GetInt(flagName))
-
 	case "bool":
 		raw = strconv.FormatBool(cfg.GetBool(flagName))
-
 	case "duration":
 		val := cfg.GetString(flagName)
 		if _, err := time.ParseDuration(val); err == nil {
@@ -153,10 +175,8 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 			)
 			return
 		}
-
 	case "float64":
 		raw = strconv.FormatFloat(cfg.GetFloat64(flagName), 'f', -1, 64)
-
 	default:
 		raw = cfg.GetString(flagName)
 	}
@@ -177,13 +197,26 @@ func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 	}
 }
 
+type probeMeta struct {
+	Probe      string        `json:"probe"`
+	Group      string        `json:"group"`
+	Script     string        `json:"script"`
+	LogPath    string        `json:"log_path"`
+	Duration   time.Duration `json:"duration"`
+	Recurrent  bool          `json:"recurrent"`
+	Iterations int           `json:"iterations"`
+	PID        int           `json:"pid"`
+	Quiescence time.Time     `json:"quiescence"`
+	Notify     bool          `json:"notify"`
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func saveProbeMeta(meta *probeMeta) {
 	const op = "probe.saveMeta"
 
 	horus.CheckErr(
-		domovoi.CreateDir(dirs.probe, flags.verbose),
+		domovoi.CreateDir(dirs.probe, rootFlags.verbose),
 		horus.WithOp(op),
 		horus.WithCategory("io_error"),
 		horus.WithMessage("creating probe directory"),
@@ -215,6 +248,8 @@ func saveProbeMeta(meta *probeMeta) {
 		}),
 	)
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func loadProbeMeta(name string) *probeMeta {
 	const op = "hypnos.loadProbeMeta"
@@ -265,10 +300,14 @@ func listProbeMetaFiles() []string {
 	return files
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func stripProbeName(metaFile string) string {
 	base := filepath.Base(metaFile)
 	return strings.TrimSuffix(base, ".json")
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func matchProbeGroup(metaFile string, group string) bool {
 	data, err := os.ReadFile(metaFile)
@@ -303,6 +342,8 @@ func completeProbeNames(cmd *cobra.Command, args []string, toComplete string) ([
 	return names, cobra.ShellCompDirectiveNoFileComp
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func completeProbeGroups(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	groups := make(map[string]struct{})
 	for _, metaFile := range listProbeMetaFiles() {
@@ -325,7 +366,8 @@ func completeProbeGroups(cmd *cobra.Command, args []string, toComplete string) (
 	return out, cobra.ShellCompDirectiveNoFileComp
 }
 
-// BUG: completion is detecting the names of the fields
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	files, err := os.ReadDir(dirs.config)
 	if err != nil {
@@ -360,6 +402,12 @@ func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string)
 		}
 	}
 	return opts, cobra.ShellCompDirectiveNoFileComp
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func Execute() {
+	horus.CheckErr(GetRootCmd().Execute())
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
