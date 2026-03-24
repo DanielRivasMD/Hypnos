@@ -30,25 +30,15 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var awakenCmd = &cobra.Command{
-	Use:     "awaken",
-	Short:   "Create hypnos directories",
-	Long:    helpAwaken,
-	Example: exampleAwaken,
-
-	Run: runAwaken,
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func init() {
-	rootCmd.AddCommand(awakenCmd)
+func AwakenCmd() *cobra.Command {
+	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("awaken", runAwaken))
+	return cmd
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func runAwaken(cmd *cobra.Command, args []string) {
-	createSubdirs(dirs, flags.verbose)
+	createSubdirs(dirs, rootFlags.verbose)
 	generateConfig(generateToml())
 }
 
@@ -115,19 +105,19 @@ func generateToml() string {
 func generateConfig(example string) {
 	op := "awaken.generateConfig"
 
-	if flags.configOutput == "" {
+	if rootFlags.configOutput == "" {
 		fmt.Print(example)
 		return
 	}
 
 	horus.CheckErr(
-		os.WriteFile(flags.configOutput, []byte(example), 0o644),
+		os.WriteFile(rootFlags.configOutput, []byte(example), 0o644),
 		horus.WithOp(op),
 		horus.WithCategory("io_error"),
-		horus.WithMessage(fmt.Sprintf("writing example to %q", flags.configOutput)),
+		horus.WithMessage(fmt.Sprintf("writing example to %q", rootFlags.configOutput)),
 	)
 
-	fmt.Printf("Example config written to %s\n", flags.configOutput)
+	fmt.Printf("Example config written to %s\n", rootFlags.configOutput)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
