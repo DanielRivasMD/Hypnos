@@ -1,7 +1,7 @@
 {
   "identity": {
     "use": "identity",
-    "hidden": true,
+    "hidden": true
   },
   "completion": {
     "use": "completion [bash|zsh|fish|powershell]",

@@ -208,6 +208,7 @@ type probeMeta struct {
 	PID        int           `json:"pid"`
 	Quiescence time.Time     `json:"quiescence"`
 	Notify     bool          `json:"notify"`
+	Carbonite  bool          `json:"carbonite"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

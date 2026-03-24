@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/DanielRivasMD/domovoi"
@@ -47,6 +48,7 @@ type configPaths struct {
 	recurrent  bool
 	iterations int
 	notify     bool
+	carbonite  bool
 }
 
 var (
@@ -71,6 +73,7 @@ func HibernateCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&launcher.recurrent, "recurrent", "", false, "repeat timer indefinitely")
 	cmd.Flags().IntVarP(&launcher.iterations, "iterations", "", 0, "run this many times (0=unlimited if --recurrent)")
 	cmd.Flags().BoolVar(&launcher.notify, "notify-only", false, "only send notification, skip script execution")
+	cmd.Flags().BoolVar(&launcher.carbonite, "carbonite", false, "run script as a perpetual background process (daemon)")
 
 	return cmd
 }
@@ -88,6 +91,7 @@ func HibernateWorkerCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&worker.recurrent, "recurrent", false, "")
 	cmd.Flags().IntVar(&worker.iterations, "iterations", 0, "")
 	cmd.Flags().BoolVar(&worker.notify, "notify-only", false, "only send notification, skip script execution")
+	cmd.Flags().BoolVar(&worker.carbonite, "carbonite", false, "")
 
 	return cmd
 }
@@ -143,6 +147,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 		bindFlag(cmd, "duration", wf)
 		bindFlag(cmd, "recurrent", wf)
 		bindFlag(cmd, "iterations", wf)
+		bindFlag(cmd, "carbonite", wf)
 
 		if !cmd.Flags().Changed("log") {
 			launcher.log = launcher.config
@@ -200,6 +205,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 		Iterations: launcher.iterations,
 		Quiescence: time.Now(),
 		Notify:     launcher.notify,
+		Carbonite:  launcher.carbonite,
 	}
 
 	pid, err := spawnProbe(meta)
@@ -227,13 +233,20 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 
 	log := func(format string, a ...any) {
 		line := fmt.Sprintf(format, a...)
-		fmt.Fprintln(os.Stderr, line)
 		fmt.Fprintln(f, line)
+	}
+
+	if worker.carbonite {
+		log("Carbonite mode: running %q as a daemon", worker.script)
+		if err := runAsDaemon(worker.script, f); err != nil {
+			log("Daemon execution failed: %v", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	log("Downtime %q started for %s", worker.probe, worker.duration)
 
-	// TODO: iterations not working properly
 	count := 0
 	for {
 		count++
@@ -294,6 +307,9 @@ func spawnProbe(meta *probeMeta) (int, error) {
 	if meta.Notify {
 		args = append(args, "--notify-only")
 	}
+	if meta.Carbonite {
+		args = append(args, "--carbonite")
+	}
 
 	f, err := os.OpenFile(meta.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
@@ -314,6 +330,22 @@ func spawnProbe(meta *probeMeta) (int, error) {
 
 func runDowntime(d time.Duration, onDone func()) {
 	time.AfterFunc(d, onDone)
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func runAsDaemon(script string, logFile *os.File) error {
+	if err := syscall.Dup2(int(logFile.Fd()), 1); err != nil {
+		return fmt.Errorf("dup2 stdout: %w", err)
+	}
+	if err := syscall.Dup2(int(logFile.Fd()), 2); err != nil {
+		return fmt.Errorf("dup2 stderr: %w", err)
+	}
+	_ = logFile.Close()
+
+	argv := []string{"/bin/sh", "-c", script}
+	env := os.Environ()
+	return syscall.Exec(argv[0], argv, env)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
