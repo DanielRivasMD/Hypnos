@@ -34,19 +34,8 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var scanCmd = &cobra.Command{
-	Use:     "scan",
-	Short:   "List probes & their state",
-	Long:    helpScan,
-	Example: exampleScan,
-
-	Run: runScan,
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func init() {
-	rootCmd.AddCommand(scanCmd)
+func ScanCmd() *cobra.Command {
+	return horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("scan", runScan))
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +43,7 @@ func init() {
 func runScan(cmd *cobra.Command, args []string) {
 	const op = "hypnos.scan"
 
-	entries, err := domovoi.ReadDir(dirs.probe, flags.verbose)
+	entries, err := domovoi.ReadDir(dirs.probe, rootFlags.verbose)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading probe directory"))
 
 	if len(entries) == 0 {
