@@ -1,0 +1,99 @@
+{
+  "identity": {
+    "use": "identity",
+    "hidden": true,
+  },
+  "completion": {
+    "use": "completion [bash|zsh|fish|powershell]",
+    "hidden": true,
+    "long": "To load completions:\n\nBash:\n\n  $ source <(%[1]s completion bash)\n\n  # To load completions for each session, execute once:\n  # Linux:\n  $ %[1]s completion bash > /etc/bash_completion.d/%[1]s\n  # macOS:\n  $ %[1]s completion bash > $(brew --prefix)/etc/bash_completion.d/%[1]s\n\nZsh:\n\n  # If shell completion is not already enabled in your environment,\n  # you will need to enable it. You can execute the following once:\n\n  $ echo \"autoload -U compinit; compinit\" >> ~/.zshrc\n\n  # To load completions for each session, execute once:\n  $ %[1]s completion zsh > \"${fpath[1]}/_%[1]s\"\n\n  # You will need to start a new shell for this setup to take effect.\n\nfish:\n\n  $ %[1]s completion fish | source\n\n  # To load completions for each session, execute once:\n  $ %[1]s completion fish > ~/.config/fish/completions/%[1]s.fish\n\nPowerShell:\n\n  PS> %[1]s completion powershell | Out-String | Invoke-Expression\n\n  # To load completions for every new session, run:\n  PS> %[1]s completion powershell > %[1]s.ps1\n  # and source this file from your PowerShell profile.",
+    "valid_args": [
+      "bash",
+      "zsh",
+      "fish",
+      "powershell"
+    ]
+  },
+  "root": {
+    "use": "hypnos",
+    "short": "Minimalist CLI for scheduling downtime timers",
+    "long": "Hypnos is a minimalist CLI for scheduling downtime timers that execute scripts or send notifications after a delay. It manages background workers, persists metadata, keeps logs, and provides commands to inspect, stop, or configure timers — all stored under ~/.hypnos.",
+    "example_usages": [
+      [
+        "hypnos awaken"
+      ],
+      [
+        "hypnos hibernate --probe pmail --script \"open -a Mail\" --duration 5m"
+      ],
+      [
+        "hypnos scan"
+      ],
+      [
+        "hypnos stasis pmail"
+      ]
+    ]
+  },
+  "awaken": {
+    "use": "awaken",
+    "short": "Create hypnos directories",
+    "long": "Initializes the Hypnos environment. Creates ~/.hypnos/{config,log,probe} and prints an example workflow configuration. Use --config-output <file> to write the example to disk.",
+    "example_usages": [
+      [
+        "hypnos awaken"
+      ],
+      [
+        "hypnos awaken --config-output ~/.hypnos/config/example.toml"
+      ]
+    ]
+  },
+  "hibernate": {
+    "use": "hibernate [workflow]",
+    "short": "Send a probe to hibernation",
+    "long": "Schedules a downtime timer. All flags can be provided manually, or passed a workflow name to load defaults from ~/.hypnos/config/*.toml. The launcher spawns a hidden worker process that sleeps for the specified duration, optionally executes a script, sends a notification, and repeats based on --iterations or --recurrent. Metadata is saved under ~/.hypnos/probe.",
+    "example_usages": [
+      [
+        "hypnos hibernate --probe focus --script \"say 'Done'\" --duration 25m"
+      ],
+      [
+        "hypnos hibernate deep-focus"
+      ],
+      [
+        "hypnos hibernate --probe backup --script \"/usr/local/bin/backup.sh\" --duration 1h --recurrent"
+      ]
+    ]
+  },
+  "hibernate-run": {
+    "use": "hibernate-run",
+    "short": "hidden worker command",
+    "hidden": true
+  },
+  "scan": {
+    "use": "scan",
+    "short": "List probes & their state",
+    "long": "Lists all active or completed probes. Reads metadata from ~/.hypnos/probe/*.json and checks each PID to determine whether the worker is running, stopped, or dead. Outputs a table with probe name, group, PID, invocation time, duration, and status.",
+    "example_usages": [
+      [
+        "hypnos scan"
+      ],
+      [
+        "hypnos scan --verbose"
+      ]
+    ]
+  },
+  "stasis": {
+    "use": "stasis [probe]",
+    "short": "Terminate & clean up probes",
+    "long": "Stops one or more downtime probes. Sends SIGTERM to each worker process, then removes its metadata and log files from ~/.hypnos/probe and ~/.hypnos/log. Supports purging a single probe, all probes, or all probes in a specific group.",
+    "example_usages": [
+      [
+        "hypnos stasis focus"
+      ],
+      [
+        "hypnos stasis --group deepwork"
+      ],
+      [
+        "hypnos stasis --all"
+      ]
+    ]
+  }
+}
