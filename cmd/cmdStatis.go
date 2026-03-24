@@ -33,31 +33,22 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-var stasisCmd = &cobra.Command{
-	Use:     "stasis " + chalk.Dim.TextStyle(chalk.Italic.TextStyle("[probe]")),
-	Short:   "Terminate & clean up probes",
-	Long:    helpStasis,
-	Example: exampleStasis,
+func StasisCmd() *cobra.Command {
+	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("stasis", runStasis,
+		domovoi.WithArgs(cobra.MaximumNArgs(1)),
+		domovoi.WithValidArgsFunction(completeProbeNames),
+	))
 
-	Args:              cobra.MaximumNArgs(1),
-	ValidArgsFunction: completeProbeNames,
-
-	Run: runStasis,
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func init() {
-	rootCmd.AddCommand(stasisCmd)
-
-	stasisCmd.Flags().BoolVar(&flags.stasisAll, "all", false, "stasis all probes")
-	stasisCmd.Flags().StringVar(&flags.stasisGroup, "group", "", "stasis all probes in a specific group")
+	cmd.Flags().BoolVar(&rootFlags.stasisAll, "all", false, "stasis all probes")
+	cmd.Flags().StringVar(&rootFlags.stasisGroup, "group", "", "stasis all probes in a specific group")
 
 	horus.CheckErr(
-		stasisCmd.RegisterFlagCompletionFunc("group", completeProbeGroups),
+		cmd.RegisterFlagCompletionFunc("group", completeProbeGroups),
 		horus.WithOp("stasis.init"),
 		horus.WithMessage("registering group completion"),
 	)
+
+	return cmd
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -66,10 +57,10 @@ func runStasis(cmd *cobra.Command, args []string) {
 	const op = "hypnos.stasis"
 
 	switch {
-	case flags.stasisAll:
+	case rootFlags.stasisAll:
 		stasisAllProbes()
-	case flags.stasisGroup != "":
-		stasisGroupProbes(flags.stasisGroup)
+	case rootFlags.stasisGroup != "":
+		stasisGroupProbes(rootFlags.stasisGroup)
 	case len(args) == 1:
 		stasisProbe(args[0])
 	default:
@@ -105,7 +96,7 @@ func stasisProbe(name string) {
 
 	horus.CheckErr(
 		func() error {
-			_, err := domovoi.RemoveFile(filepath.Join(dirs.probe, name+".json"), flags.verbose)(filepath.Join(dirs.probe, name+".json"))
+			_, err := domovoi.RemoveFile(filepath.Join(dirs.probe, name+".json"), rootFlags.verbose)(filepath.Join(dirs.probe, name+".json"))
 			return err
 		}(),
 		horus.WithOp(op),
@@ -115,7 +106,7 @@ func stasisProbe(name string) {
 
 	horus.CheckErr(
 		func() error {
-			_, err := domovoi.RemoveFile(meta.LogPath, flags.verbose)(meta.LogPath)
+			_, err := domovoi.RemoveFile(meta.LogPath, rootFlags.verbose)(meta.LogPath)
 			return err
 		}(),
 		horus.WithOp(op),
@@ -126,6 +117,8 @@ func stasisProbe(name string) {
 	fmt.Printf("%s stasisd probe %q\n", chalk.Green.Color("OK:"), meta.Probe)
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func stasisGroupProbes(group string) {
 	for _, metaFile := range listProbeMetaFiles() {
 		if matchProbeGroup(metaFile, group) {
@@ -133,6 +126,8 @@ func stasisGroupProbes(group string) {
 		}
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func stasisAllProbes() {
 	for _, metaFile := range listProbeMetaFiles() {
