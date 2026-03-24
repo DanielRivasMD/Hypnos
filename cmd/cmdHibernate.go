@@ -37,42 +37,6 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TODO: add feature to specify only launching notification
-// TODO: allow `duration` or `time`
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-var hibernateLauncherCmd = &cobra.Command{
-	Use:     "hibernate",
-	Short:   "Send a probe to hibernation",
-	Long:    helpHibernate,
-	Example: exampleHibernate,
-
-	Args:              cobra.MaximumNArgs(1),
-	ValidArgsFunction: completeWorkflowNames,
-
-	PreRun: preRunHibernate,
-	Run:    runHibernate,
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-var hibernateWorkerCmd = &cobra.Command{
-	Use:    "hibernate-run",
-	Hidden: true,
-
-	Run: hiddenRunHibernate,
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// TODO: review struct composition
-// TODO: bind directly from flags?
-var (
-	launcher configPaths
-	worker   configPaths
-)
-
 type configPaths struct {
 	config     string
 	probe      string
@@ -85,29 +49,47 @@ type configPaths struct {
 	notify     bool
 }
 
+var (
+	launcher configPaths
+	worker   configPaths
+)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func init() {
-	rootCmd.AddCommand(hibernateLauncherCmd)
-	rootCmd.AddCommand(hibernateWorkerCmd)
+func HibernateCmd() *cobra.Command {
+	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("hibernate", runHibernate,
+		domovoi.WithArgs(cobra.MaximumNArgs(1)),
+		domovoi.WithValidArgsFunction(completeWorkflowNames),
+		domovoi.WithPreRun(preRunHibernate),
+	))
 
-	hibernateLauncherCmd.Flags().StringVarP(&launcher.probe, "probe", "", "", "instance name (manual or default: <config>-<ts>)")
-	hibernateLauncherCmd.Flags().StringVarP(&launcher.group, "group", "g", "", "group label for this probe")
-	hibernateLauncherCmd.Flags().StringVarP(&launcher.log, "log", "", "", "log file basename (no .log)")
-	hibernateLauncherCmd.Flags().StringVarP(&launcher.script, "script", "", "", "shell command to execute")
-	hibernateLauncherCmd.Flags().DurationVarP(&launcher.duration, "duration", "", time.Hour, "how long to wait")
-	hibernateLauncherCmd.Flags().BoolVarP(&launcher.recurrent, "recurrent", "", false, "repeat timer indefinitely")
-	hibernateLauncherCmd.Flags().IntVarP(&launcher.iterations, "iterations", "", 0, "run this many times (0=unlimited if --recurrent)")
-	hibernateLauncherCmd.Flags().BoolVar(&launcher.notify, "notify-only", false, "only send notification, skip script execution")
+	cmd.Flags().StringVarP(&launcher.probe, "probe", "", "", "instance name (manual or default: <config>-<ts>)")
+	cmd.Flags().StringVarP(&launcher.group, "group", "g", "", "group label for this probe")
+	cmd.Flags().StringVarP(&launcher.log, "log", "", "", "log file basename (no .log)")
+	cmd.Flags().StringVarP(&launcher.script, "script", "", "", "shell command to execute")
+	cmd.Flags().DurationVarP(&launcher.duration, "duration", "", time.Hour, "how long to wait")
+	cmd.Flags().BoolVarP(&launcher.recurrent, "recurrent", "", false, "repeat timer indefinitely")
+	cmd.Flags().IntVarP(&launcher.iterations, "iterations", "", 0, "run this many times (0=unlimited if --recurrent)")
+	cmd.Flags().BoolVar(&launcher.notify, "notify-only", false, "only send notification, skip script execution")
 
-	hibernateWorkerCmd.Flags().StringVar(&worker.probe, "probe", "", "instance name")
-	hibernateWorkerCmd.Flags().StringVar(&worker.group, "group", "", "group label for this probe")
-	hibernateWorkerCmd.Flags().StringVar(&worker.log, "log", "", "log basename")
-	hibernateWorkerCmd.Flags().StringVar(&worker.script, "script", "", "shell command to execute")
-	hibernateWorkerCmd.Flags().DurationVar(&worker.duration, "duration", time.Hour, "how long to wait")
-	hibernateWorkerCmd.Flags().BoolVar(&worker.recurrent, "recurrent", false, "")
-	hibernateWorkerCmd.Flags().IntVar(&worker.iterations, "iterations", 0, "")
-	hibernateWorkerCmd.Flags().BoolVar(&worker.notify, "notify-only", false, "only send notification, skip script execution")
+	return cmd
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func HibernateWorkerCmd() *cobra.Command {
+	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("hibernate-run", hiddenRunHibernate))
+
+	cmd.Flags().StringVar(&worker.probe, "probe", "", "instance name")
+	cmd.Flags().StringVar(&worker.group, "group", "", "group label for this probe")
+	cmd.Flags().StringVar(&worker.log, "log", "", "log basename")
+	cmd.Flags().StringVar(&worker.script, "script", "", "shell command to execute")
+	cmd.Flags().DurationVar(&worker.duration, "duration", time.Hour, "how long to wait")
+	cmd.Flags().BoolVar(&worker.recurrent, "recurrent", false, "")
+	cmd.Flags().IntVar(&worker.iterations, "iterations", 0, "")
+	cmd.Flags().BoolVar(&worker.notify, "notify-only", false, "only send notification, skip script execution")
+
+	return cmd
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -117,14 +99,13 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 
 	if len(args) == 1 {
 		// CONFIG MODE: pull everything from TOML
-		if flags.verbose {
+		if rootFlags.verbose {
 			fmt.Println("Running on Config mode...")
 		}
 
-		// declare workflow
 		launcher.config = args[0]
 
-		files, err := domovoi.ReadDir(dirs.config, flags.verbose)
+		files, err := domovoi.ReadDir(dirs.config, rootFlags.verbose)
 		horus.CheckErr(err, horus.WithOp(op), horus.WithCategory("env_error"), horus.WithMessage("reading config dir"))
 		var foundV *viper.Viper
 		for _, f := range files {
@@ -159,8 +140,6 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 		bindFlag(cmd, "script", wf)
 		bindFlag(cmd, "probe", wf)
 		bindFlag(cmd, "log", wf)
-
-		// TODO: bind differnt types
 		bindFlag(cmd, "duration", wf)
 		bindFlag(cmd, "recurrent", wf)
 		bindFlag(cmd, "iterations", wf)
@@ -169,11 +148,9 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 			launcher.log = launcher.config
 			horus.CheckErr(cmd.Flags().Set("log", launcher.log), horus.WithOp(op), horus.WithMessage("setting default --log"))
 		}
-
 	} else {
-
 		// MANUAL MODE: require explicit flags
-		if flags.verbose {
+		if rootFlags.verbose {
 			fmt.Println("Running on Manual mode...")
 		}
 
@@ -222,6 +199,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 		Recurrent:  launcher.recurrent,
 		Iterations: launcher.iterations,
 		Quiescence: time.Now(),
+		Notify:     launcher.notify,
 	}
 
 	pid, err := spawnProbe(meta)
@@ -262,7 +240,6 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 
 		done := make(chan struct{})
 
-		// BUG: nofity-only
 		runDowntime(worker.duration, func() {
 			if !worker.notify {
 				log("▸ timer fired, executing shell snippet")
@@ -333,9 +310,13 @@ func spawnProbe(meta *probeMeta) (int, error) {
 	return cmd.Process.Pid, nil
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func runDowntime(d time.Duration, onDone func()) {
 	time.AfterFunc(d, onDone)
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func notify(title, msg string) error {
 	if tnPath, err := exec.LookPath("terminal-notifier"); err == nil {
