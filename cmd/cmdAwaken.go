@@ -38,13 +38,13 @@ func AwakenCmd() *cobra.Command {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func runAwaken(cmd *cobra.Command, args []string) {
-	createSubdirs(dirs, rootFlags.verbose)
+	createSubdirs(configDirs, rootFlags.verbose)
 	generateConfig(generateToml())
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func createSubdirs(d configDirs, verbose bool) {
+func createSubdirs(d configDir, verbose bool) {
 	const op = "hypnos.awaken"
 
 	toCreate := []struct {
