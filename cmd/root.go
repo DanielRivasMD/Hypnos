@@ -20,20 +20,13 @@ package cmd
 
 import (
 	"embed"
-	"encoding/json"
-	"fmt"
-	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/DanielRivasMD/domovoi"
 	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/ttacon/chalk"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,27 +45,25 @@ const (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-type hypnosFlags struct {
-	verbose      bool
-	configOutput string
-	stasisAll    bool
-	stasisGroup  string
-}
+var (
+	onceRoot  sync.Once
+	rootCmd   *cobra.Command
+	rootFlags struct {
+		verbose      bool
+		configOutput string
+		stasisAll    bool
+		stasisGroup  string
+	}
+	configDirs configDir
+)
 
-type configDirs struct {
+type configDir struct {
 	home   string
 	hypnos string
 	config string
 	log    string
 	probe  string
 }
-
-var (
-	onceRoot  sync.Once
-	rootCmd   *cobra.Command
-	rootFlags hypnosFlags
-	dirs      configDirs
-)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -109,11 +100,12 @@ func GetRootCmd() *cobra.Command {
 func BuildCommands() {
 	root := GetRootCmd()
 	root.AddCommand(
-		AwakenCmd(),
 		CompletionCmd(),
+		IdentityCmd(),
+
+		AwakenCmd(),
 		HibernateCmd(),
 		HibernateWorkerCmd(),
-		IdentityCmd(),
 		ScanCmd(),
 		StasisCmd(),
 	)
@@ -123,79 +115,15 @@ func BuildCommands() {
 
 func initConfigPaths() {
 	var err error
-	dirs.home, err = domovoi.FindHome(rootFlags.verbose)
+	configDirs.home, err = domovoi.FindHome(rootFlags.verbose)
 	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
-	dirs.hypnos = filepath.Join(dirs.home, ".hypnos")
-	dirs.config = filepath.Join(dirs.hypnos, "config")
-	dirs.log = filepath.Join(dirs.hypnos, "log")
-	dirs.probe = filepath.Join(dirs.hypnos, "probe")
+	configDirs.hypnos = filepath.Join(configDirs.home, ".hypnos")
+	configDirs.config = filepath.Join(configDirs.hypnos, "config")
+	configDirs.log = filepath.Join(configDirs.hypnos, "log")
+	configDirs.probe = filepath.Join(configDirs.hypnos, "probe")
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func onelineErr(er string) string {
-	return chalk.Bold.TextStyle(chalk.Red.Color(er))
-}
-
-// bindFlag reads a value from a Viper config and sets the corresponding flag if not already changed.
-func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
-	const op = "cli.bindFlag"
-	flags := cmd.Flags()
-
-	if flags.Changed(flagName) || !cfg.IsSet(flagName) {
-		return
-	}
-
-	f := flags.Lookup(flagName)
-	if f == nil {
-		return
-	}
-
-	var raw string
-	switch f.Value.Type() {
-	case "string":
-		raw = cfg.GetString(flagName)
-	case "int":
-		raw = strconv.Itoa(cfg.GetInt(flagName))
-	case "bool":
-		raw = strconv.FormatBool(cfg.GetBool(flagName))
-	case "duration":
-		val := cfg.GetString(flagName)
-		if _, err := time.ParseDuration(val); err == nil {
-			raw = val
-		} else {
-			horus.CheckErr(
-				horus.NewCategorizedHerror(
-					op,
-					"config_error",
-					fmt.Sprintf("invalid duration for %q", flagName),
-					err,
-					map[string]any{"value": val},
-				),
-			)
-			return
-		}
-	case "float64":
-		raw = strconv.FormatFloat(cfg.GetFloat64(flagName), 'f', -1, 64)
-	default:
-		raw = cfg.GetString(flagName)
-	}
-
-	if err := flags.Set(flagName, raw); err != nil {
-		horus.CheckErr(
-			horus.NewCategorizedHerror(
-				op,
-				"config_error",
-				fmt.Sprintf("setting %q from config", flagName),
-				err,
-				map[string]any{
-					"flag":  flagName,
-					"value": raw,
-				},
-			),
-		)
-	}
-}
 
 type probeMeta struct {
 	Probe      string        `json:"probe"`
@@ -209,200 +137,6 @@ type probeMeta struct {
 	Quiescence time.Time     `json:"quiescence"`
 	Notify     bool          `json:"notify"`
 	Carbonite  bool          `json:"carbonite"`
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func saveProbeMeta(meta *probeMeta) {
-	const op = "probe.saveMeta"
-
-	horus.CheckErr(
-		domovoi.CreateDir(dirs.probe, rootFlags.verbose),
-		horus.WithOp(op),
-		horus.WithCategory("io_error"),
-		horus.WithMessage("creating probe directory"),
-		horus.WithDetails(map[string]any{
-			"dir": dirs.probe,
-		}),
-	)
-
-	data, err := json.MarshalIndent(meta, "", "  ")
-	horus.CheckErr(
-		err,
-		horus.WithOp(op),
-		horus.WithCategory("encode_error"),
-		horus.WithMessage("marshaling probe metadata"),
-		horus.WithDetails(map[string]any{
-			"probe": meta.Probe,
-			"group": meta.Group,
-		}),
-	)
-
-	path := filepath.Join(dirs.probe, meta.Probe+".json")
-	horus.CheckErr(
-		os.WriteFile(path, data, 0o644),
-		horus.WithOp(op),
-		horus.WithCategory("io_error"),
-		horus.WithMessage("writing probe metadata file"),
-		horus.WithDetails(map[string]any{
-			"path": path,
-		}),
-	)
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func loadProbeMeta(name string) *probeMeta {
-	const op = "hypnos.loadProbeMeta"
-
-	path := filepath.Join(dirs.probe, name+".json")
-
-	data, err := os.ReadFile(path)
-	horus.CheckErr(
-		err,
-		horus.WithOp(op),
-		horus.WithCategory("io_error"),
-		horus.WithMessage("reading probe metadata file"),
-		horus.WithDetails(map[string]any{
-			"path": path,
-			"name": name,
-		}),
-	)
-
-	var meta probeMeta
-	horus.CheckErr(
-		json.Unmarshal(data, &meta),
-		horus.WithOp(op),
-		horus.WithCategory("decode_error"),
-		horus.WithMessage("unmarshaling probe metadata"),
-		horus.WithDetails(map[string]any{
-			"path": path,
-			"name": name,
-		}),
-	)
-
-	return &meta
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func listProbeMetaFiles() []string {
-	var files []string
-	entries, err := os.ReadDir(dirs.probe)
-	if err != nil {
-		return files
-	}
-	for _, fi := range entries {
-		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".json") {
-			continue
-		}
-		files = append(files, filepath.Join(dirs.probe, fi.Name()))
-	}
-	return files
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func stripProbeName(metaFile string) string {
-	base := filepath.Base(metaFile)
-	return strings.TrimSuffix(base, ".json")
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func matchProbeGroup(metaFile string, group string) bool {
-	data, err := os.ReadFile(metaFile)
-	if err != nil {
-		return false
-	}
-	var m probeMeta
-	if err := json.Unmarshal(data, &m); err != nil {
-		return false
-	}
-	return m.Group == group
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func completeProbeNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	var names []string
-
-	files, err := os.ReadDir(dirs.probe)
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-	for _, fi := range files {
-		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".json") {
-			continue
-		}
-		name := strings.TrimSuffix(fi.Name(), ".json")
-		if strings.HasPrefix(name, toComplete) {
-			names = append(names, name)
-		}
-	}
-	return names, cobra.ShellCompDirectiveNoFileComp
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func completeProbeGroups(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	groups := make(map[string]struct{})
-	for _, metaFile := range listProbeMetaFiles() {
-		data, err := os.ReadFile(metaFile)
-		if err != nil {
-			continue
-		}
-		var m probeMeta
-		if err := json.Unmarshal(data, &m); err != nil {
-			continue
-		}
-		if m.Group != "" && strings.HasPrefix(m.Group, toComplete) {
-			groups[m.Group] = struct{}{}
-		}
-	}
-	var out []string
-	for g := range groups {
-		out = append(out, g)
-	}
-	return out, cobra.ShellCompDirectiveNoFileComp
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func completeWorkflowNames(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	files, err := os.ReadDir(dirs.config)
-	if err != nil {
-		return nil, cobra.ShellCompDirectiveError
-	}
-
-	seen := make(map[string]struct{})
-	var opts []string
-
-	for _, fi := range files {
-		if fi.IsDir() || !strings.HasSuffix(fi.Name(), ".toml") {
-			continue
-		}
-		path := filepath.Join(dirs.config, fi.Name())
-		v := viper.New()
-		v.SetConfigFile(path)
-		if err := v.ReadInConfig(); err != nil {
-			continue
-		}
-		for _, key := range v.AllKeys() {
-			if wf, ok := strings.CutPrefix(key, "workflows."); ok {
-				parts := strings.Split(wf, ".")
-				name := parts[0]
-				if _, exists := seen[name]; exists {
-					continue
-				}
-				if strings.HasPrefix(name, toComplete) {
-					opts = append(opts, name)
-					seen[name] = struct{}{}
-				}
-			}
-		}
-	}
-	return opts, cobra.ShellCompDirectiveNoFileComp
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
