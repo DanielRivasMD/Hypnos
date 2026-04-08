@@ -43,7 +43,7 @@ func ScanCmd() *cobra.Command {
 func runScan(cmd *cobra.Command, args []string) {
 	const op = "hypnos.scan"
 
-	entries, err := domovoi.ReadDir(dirs.probe, rootFlags.verbose)
+	entries, err := domovoi.ReadDir(configDirs.probe, rootFlags.verbose)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("reading probe directory"))
 
 	if len(entries) == 0 {
