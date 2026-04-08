@@ -90,9 +90,27 @@ func GetRootCmd() *cobra.Command {
 		rootCmd.Flags().StringVar(&rootFlags.configOutput, "config-output", "", "Write example config to file")
 		rootCmd.Version = VERSION
 
-		cobra.OnInitialize(initConfigPaths)
+		cobra.OnInitialize(initConfigDirs)
 	})
 	return rootCmd
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func Execute() {
+	horus.CheckErr(GetRootCmd().Execute())
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func initConfigDirs() {
+	var err error
+	configDirs.home, err = domovoi.FindHome(rootFlags.verbose)
+	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
+	configDirs.hypnos = filepath.Join(configDirs.home, ".hypnos")
+	configDirs.config = filepath.Join(configDirs.hypnos, "config")
+	configDirs.log = filepath.Join(configDirs.hypnos, "log")
+	configDirs.probe = filepath.Join(configDirs.hypnos, "probe")
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -113,18 +131,6 @@ func BuildCommands() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func initConfigPaths() {
-	var err error
-	configDirs.home, err = domovoi.FindHome(rootFlags.verbose)
-	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
-	configDirs.hypnos = filepath.Join(configDirs.home, ".hypnos")
-	configDirs.config = filepath.Join(configDirs.hypnos, "config")
-	configDirs.log = filepath.Join(configDirs.hypnos, "log")
-	configDirs.probe = filepath.Join(configDirs.hypnos, "probe")
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 type probeMeta struct {
 	Probe      string        `json:"probe"`
 	Group      string        `json:"group"`
@@ -137,12 +143,6 @@ type probeMeta struct {
 	Quiescence time.Time     `json:"quiescence"`
 	Notify     bool          `json:"notify"`
 	Carbonite  bool          `json:"carbonite"`
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func Execute() {
-	horus.CheckErr(GetRootCmd().Execute())
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
