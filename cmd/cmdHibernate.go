@@ -109,14 +109,14 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 
 		launcher.config = args[0]
 
-		files, err := domovoi.ReadDir(dirs.config, rootFlags.verbose)
+		files, err := domovoi.ReadDir(configDirs.config, rootFlags.verbose)
 		horus.CheckErr(err, horus.WithOp(op), horus.WithCategory("env_error"), horus.WithMessage("reading config dir"))
 		var foundV *viper.Viper
 		for _, f := range files {
 			if f.IsDir() || !strings.HasSuffix(f.Name(), ".toml") {
 				continue
 			}
-			path := filepath.Join(dirs.config, f.Name())
+			path := filepath.Join(configDirs.config, f.Name())
 			v := viper.New()
 			v.SetConfigFile(path)
 			if err := v.ReadInConfig(); err != nil {
@@ -131,7 +131,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 			horus.CheckErr(
 				errors.New(""),
 				horus.WithMessage(fmt.Sprintf("workflow %s not found", launcher.config)),
-				horus.WithFormatter(func(he *horus.Herror) string { return onelineErr(he.Message) }),
+				horus.WithFormatter(func(he *horus.Herror) string { return horus.OneLineErr(he.Message) }),
 			)
 		}
 
@@ -199,7 +199,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 		Probe:      launcher.probe,
 		Group:      launcher.group,
 		Script:     launcher.script,
-		LogPath:    filepath.Join(dirs.log, launcher.log+".log"),
+		LogPath:    filepath.Join(configDirs.log, launcher.log+".log"),
 		Duration:   launcher.duration,
 		Recurrent:  launcher.recurrent,
 		Iterations: launcher.iterations,
@@ -226,7 +226,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.work"
 
-	logFile := filepath.Join(dirs.log, worker.log+".log")
+	logFile := filepath.Join(configDirs.log, worker.log+".log")
 	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	horus.CheckErr(err, horus.WithOp(op), horus.WithMessage("opening log file"))
 	defer f.Close()
