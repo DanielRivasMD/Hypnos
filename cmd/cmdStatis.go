@@ -70,7 +70,7 @@ func runStasis(cmd *cobra.Command, args []string) {
 			horus.WithMessage("probe / flag"),
 			horus.WithExitCode(2),
 			horus.WithFormatter(func(he *horus.Herror) string {
-				return "missing " + onelineErr(he.Message)
+				return "missing " + horus.OneLineErr(he.Message)
 			}),
 		)
 	}
@@ -96,7 +96,7 @@ func stasisProbe(name string) {
 
 	horus.CheckErr(
 		func() error {
-			_, err := domovoi.RemoveFile(filepath.Join(dirs.probe, name+".json"), rootFlags.verbose)(filepath.Join(dirs.probe, name+".json"))
+			_, err := domovoi.RemoveFile(filepath.Join(configDirs.probe, name+".json"), rootFlags.verbose)(filepath.Join(configDirs.probe, name+".json"))
 			return err
 		}(),
 		horus.WithOp(op),
