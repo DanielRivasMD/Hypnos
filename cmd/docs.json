@@ -16,20 +16,19 @@
   },
   "root": {
     "use": "hypnos",
-    "short": "Minimalist CLI for scheduling downtime timers",
-    "long": "Hypnos is a minimalist CLI for scheduling downtime timers that execute scripts or send notifications after a delay. It manages background workers, persists metadata, keeps logs, and provides commands to inspect, stop, or configure timers — all stored under ~/.hypnos.",
+    "long": "Schedule downtime timers that execute scripts or send notifications after a delay. Manage background workers, persists metadata, keeps logs, and provides commands to inspect, stop, or configure timers - all stored under ~/.hypnos.",
     "example_usages": [
       [
         "hypnos awaken"
       ],
       [
-        "hypnos hibernate --probe pmail --script \"open -a Mail\" --duration 5m"
+        "hypnos hibernate --probe mail --script \"open -a Mail\" --duration 5m"
       ],
       [
         "hypnos scan"
       ],
       [
-        "hypnos stasis pmail"
+        "hypnos stasis mail"
       ]
     ]
   },
