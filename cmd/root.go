@@ -121,9 +121,9 @@ func BuildCommands() {
 		CompletionCmd(),
 		IdentityCmd(),
 
-		AwakenCmd(),
 		HibernateCmd(),
 		HibernateWorkerCmd(),
+		PrimeCmd(),
 		ScanCmd(),
 		StasisCmd(),
 	)

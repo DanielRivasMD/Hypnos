@@ -30,14 +30,14 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func AwakenCmd() *cobra.Command {
-	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("awaken", runAwaken))
+func PrimeCmd() *cobra.Command {
+	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("prime", runPrime))
 	return cmd
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func runAwaken(cmd *cobra.Command, args []string) {
+func runPrime(cmd *cobra.Command, args []string) {
 	createSubdirs(configDirs, rootFlags.verbose)
 	generateConfig(generateToml())
 }
