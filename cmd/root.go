@@ -104,9 +104,11 @@ func Execute() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func initConfigDirs() {
-	var err error
-	configDirs.home, err = domovoi.FindHome(rootFlags.verbose)
-	horus.CheckErr(err, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
+	configDirs.home = func() string {
+		h, e := domovoi.FindHome(rootFlags.verbose)
+		horus.CheckErr(e, horus.WithCategory("init_error"), horus.WithMessage("getting home directory"))
+		return h
+	}()
 	configDirs.hypnos = filepath.Join(configDirs.home, ".hypnos")
 	configDirs.config = filepath.Join(configDirs.hypnos, "config")
 	configDirs.log = filepath.Join(configDirs.hypnos, "log")
