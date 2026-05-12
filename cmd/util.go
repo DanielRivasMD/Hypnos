@@ -35,6 +35,22 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+type probeMeta struct {
+	Probe      string        `json:"probe"`
+	Group      string        `json:"group"`
+	Script     string        `json:"script"`
+	LogPath    string        `json:"log_path"`
+	Duration   time.Duration `json:"duration"`
+	Recurrent  bool          `json:"recurrent"`
+	Iterations int           `json:"iterations"`
+	PID        int           `json:"pid"`
+	Quiescence time.Time     `json:"quiescence"`
+	Notify     bool          `json:"notify"`
+	Carbonite  bool          `json:"carbonite"`
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 // bindFlag reads a value from a Viper config and sets the corresponding flag if not already changed
 func bindFlag(cmd *cobra.Command, flagName string, cfg *viper.Viper) {
 	const op = "cli.bindFlag"
