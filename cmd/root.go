@@ -22,7 +22,6 @@ import (
 	"embed"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/DanielRivasMD/domovoi"
 	"github.com/DanielRivasMD/horus"
@@ -40,7 +39,7 @@ const (
 	APP     = "hypnos"
 	VERSION = "v0.1.0"
 	AUTHOR  = "Daniel Rivas"
-	EMAIL   = "<danielrivasmd@gmail.com>"
+	EMAIL   = "danielrivasmd@gmail.com"
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -50,7 +49,6 @@ var (
 	rootCmd   *cobra.Command
 	rootFlags struct {
 		verbose      bool
-		configOutput string
 		stasisAll    bool
 		stasisGroup  string
 	}
@@ -87,7 +85,6 @@ func GetRootCmd() *cobra.Command {
 		horus.CheckErr(err)
 
 		rootCmd.PersistentFlags().BoolVarP(&rootFlags.verbose, "verbose", "v", false, "Enable verbose diagnostics")
-		rootCmd.Flags().StringVar(&rootFlags.configOutput, "config-output", "", "Write example config to file")
 		rootCmd.Version = VERSION
 
 		cobra.OnInitialize(initConfigDirs)
@@ -129,22 +126,6 @@ func BuildCommands() {
 		ScanCmd(),
 		StasisCmd(),
 	)
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-type probeMeta struct {
-	Probe      string        `json:"probe"`
-	Group      string        `json:"group"`
-	Script     string        `json:"script"`
-	LogPath    string        `json:"log_path"`
-	Duration   time.Duration `json:"duration"`
-	Recurrent  bool          `json:"recurrent"`
-	Iterations int           `json:"iterations"`
-	PID        int           `json:"pid"`
-	Quiescence time.Time     `json:"quiescence"`
-	Notify     bool          `json:"notify"`
-	Carbonite  bool          `json:"carbonite"`
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
