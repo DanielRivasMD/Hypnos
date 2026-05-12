@@ -19,10 +19,6 @@ package cmd
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
 	"github.com/DanielRivasMD/domovoi"
 	"github.com/DanielRivasMD/horus"
 	"github.com/spf13/cobra"
@@ -30,94 +26,24 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+var primeFlags struct {
+	output string
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 func PrimeCmd() *cobra.Command {
 	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("prime", runPrime))
+	cmd.Flags().StringVarP(&primeFlags.output, "output", "o", "", "Path to write example config (default = stdout)")
 	return cmd
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func runPrime(cmd *cobra.Command, args []string) {
-	createSubdirs(configDirs, rootFlags.verbose)
+	const op = "hypnos.prime"
+	createSubdirs(configDirs, rootFlags.verbose, op)
 	generateConfig(generateToml())
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func createSubdirs(d configDir, verbose bool) {
-	const op = "hypnos.awaken"
-
-	toCreate := []struct {
-		label, path string
-	}{
-		{"hypnos root", d.hypnos},
-		{"config", d.config},
-		{"log", d.log},
-		{"probe", d.probe},
-	}
-
-	for _, dir := range toCreate {
-		horus.CheckErr(
-			domovoi.CreateDir(dir.path, verbose),
-			horus.WithOp(op),
-			horus.WithCategory("io_error"),
-			horus.WithMessage(fmt.Sprintf("creating %s directory", dir.label)),
-			horus.WithDetails(map[string]any{
-				"path": dir.path,
-			}),
-		)
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func generateToml() string {
-	lines := []string{
-		"# hypnos workflow configuration",
-		"# Save this file as ~/.hypnos/config/<name>.toml",
-		"# Each [workflows.<key>] defines a reusable timer preset",
-		"",
-		"[workflows.mail]",
-		"# Shell command to execute when the timer expires",
-		"script = \"open -a 'Mail'\"",
-		"",
-		"# Duration to wait before executing the script (supports 5s, 10m, 1h)",
-		"duration = \"5s\"",
-		"",
-		"# Basename for the log file (saved under ~/.hypnos/logs/<log>.log)",
-		"log = \"mail\"",
-		"",
-		"# Unique name for this probe instance (used for metadata and PID tracking)",
-		"probe = \"pmail\"",
-		"",
-		"# Optional: repeat the timer indefinitely",
-		"# recurrent = true",
-		"",
-		"# Optional: number of times to run the timer (ignored if recurrent = true)",
-		"# iterations = 3",
-	}
-
-	return strings.Join(lines, "\n") + "\n"
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func generateConfig(example string) {
-	op := "awaken.generateConfig"
-
-	if rootFlags.configOutput == "" {
-		fmt.Print(example)
-		return
-	}
-
-	horus.CheckErr(
-		os.WriteFile(rootFlags.configOutput, []byte(example), 0o644),
-		horus.WithOp(op),
-		horus.WithCategory("io_error"),
-		horus.WithMessage(fmt.Sprintf("writing example to %q", rootFlags.configOutput)),
-	)
-
-	fmt.Printf("Example config written to %s\n", rootFlags.configOutput)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
