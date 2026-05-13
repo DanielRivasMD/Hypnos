@@ -22,11 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/DanielRivasMD/domovoi"
@@ -59,7 +57,7 @@ var (
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func HibernateLauncherCmd() *cobra.Command {
-	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("hibernate", runHibernate,
+	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("hibernate-launcher", runHibernateLauncher,
 		domovoi.WithArgs(cobra.MaximumNArgs(1)),
 		domovoi.WithValidArgsFunction(completeWorkflowNames),
 		domovoi.WithPreRun(preRunHibernate),
@@ -81,7 +79,7 @@ func HibernateLauncherCmd() *cobra.Command {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 func HibernateWorkerCmd() *cobra.Command {
-	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("hibernate-run", hiddenRunHibernate))
+	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("hibernate-worker", runHibernateWorker))
 
 	cmd.Flags().StringVar(&worker.probe, "probe", "", "instance name")
 	cmd.Flags().StringVar(&worker.group, "group", "", "group label for this probe")
@@ -192,7 +190,7 @@ func preRunHibernate(cmd *cobra.Command, args []string) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func runHibernate(cmd *cobra.Command, args []string) {
+func runHibernateLauncher(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.launch"
 
 	meta := &probeMeta{
@@ -223,7 +221,7 @@ func runHibernate(cmd *cobra.Command, args []string) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func hiddenRunHibernate(cmd *cobra.Command, args []string) {
+func runHibernateWorker(cmd *cobra.Command, args []string) {
 	const op = "hypnos.hibernate.work"
 
 	logFile := filepath.Join(configDirs.log, worker.log+".log")
@@ -284,96 +282,6 @@ func hiddenRunHibernate(cmd *cobra.Command, args []string) {
 	}
 
 	log("Downtime %q fully complete (ran %d times)", worker.probe, count)
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func spawnProbe(meta *probeMeta) (int, error) {
-	exe, _ := os.Executable()
-
-	args := []string{
-		"hibernate-run",
-		"--probe", meta.Probe,
-		"--log", strings.TrimSuffix(filepath.Base(meta.LogPath), ".log"),
-		"--script", meta.Script,
-		"--duration", meta.Duration.String(),
-	}
-
-	if meta.Iterations > 0 {
-		args = append(args, "--iterations", strconv.Itoa(meta.Iterations))
-	} else if meta.Recurrent {
-		args = append(args, "--recurrent")
-	}
-	if meta.Notify {
-		args = append(args, "--notify-only")
-	}
-	if meta.Carbonite {
-		args = append(args, "--carbonite")
-	}
-
-	f, err := os.OpenFile(meta.LogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return 0, err
-	}
-
-	cmd := exec.Command(exe, args...)
-	cmd.Stdout = f
-	cmd.Stderr = f
-	if err := cmd.Start(); err != nil {
-		f.Close()
-		return 0, err
-	}
-	return cmd.Process.Pid, nil
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func runDowntime(d time.Duration, onDone func()) {
-	time.AfterFunc(d, onDone)
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func runAsDaemon(script string, logFile *os.File) error {
-	if err := syscall.Dup2(int(logFile.Fd()), 1); err != nil {
-		return fmt.Errorf("dup2 stdout: %w", err)
-	}
-	if err := syscall.Dup2(int(logFile.Fd()), 2); err != nil {
-		return fmt.Errorf("dup2 stderr: %w", err)
-	}
-	_ = logFile.Close()
-
-	argv := []string{"/bin/sh", "-c", script}
-	env := os.Environ()
-	return syscall.Exec(argv[0], argv, env)
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-func notify(title, msg string) error {
-	if tnPath, err := exec.LookPath("terminal-notifier"); err == nil {
-		cmd := exec.Command(
-			tnPath,
-			"-title", title,
-			"-message", msg,
-			"-sender", "com.apple.Terminal",
-		)
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("terminal-notifier error: %v – %s", err, output)
-		}
-		return nil
-	}
-
-	if osaPath, err := exec.LookPath("osascript"); err == nil {
-		script := fmt.Sprintf(`display notification %q with title %q`, msg, title)
-		cmd := exec.Command(osaPath, "-e", script)
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("osascript error: %v – %s", err, output)
-		}
-		return nil
-	}
-
-	return fmt.Errorf("no macOS notifier found: install terminal-notifier or ensure osascript is in PATH")
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
