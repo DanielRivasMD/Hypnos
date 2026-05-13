@@ -58,7 +58,7 @@ var (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func HibernateCmd() *cobra.Command {
+func HibernateLauncherCmd() *cobra.Command {
 	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("hibernate", runHibernate,
 		domovoi.WithArgs(cobra.MaximumNArgs(1)),
 		domovoi.WithValidArgsFunction(completeWorkflowNames),
