@@ -33,14 +33,21 @@ import (
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func StasisCmd() *cobra.Command {
-	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("stasis", runStasis,
+var cryostasisFlags struct {
+	all   bool
+	group string
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+func CryostasisCmd() *cobra.Command {
+	cmd := horus.Must(horus.Must(domovoi.GlobalDocs()).MakeCmd("cryostasis", runCryostasis,
 		domovoi.WithArgs(cobra.MaximumNArgs(1)),
 		domovoi.WithValidArgsFunction(completeProbeNames),
 	))
 
-	cmd.Flags().BoolVar(&rootFlags.stasisAll, "all", false, "stasis all probes")
-	cmd.Flags().StringVar(&rootFlags.stasisGroup, "group", "", "stasis all probes in a specific group")
+	cmd.Flags().BoolVar(&cryostasisFlags.all, "all", false, "stasis all probes")
+	cmd.Flags().StringVar(&cryostasisFlags.group, "group", "", "stasis all probes in a specific group")
 
 	horus.CheckErr(
 		cmd.RegisterFlagCompletionFunc("group", completeProbeGroups),
@@ -53,16 +60,16 @@ func StasisCmd() *cobra.Command {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func runStasis(cmd *cobra.Command, args []string) {
+func runCryostasis(cmd *cobra.Command, args []string) {
 	const op = "hypnos.stasis"
 
 	switch {
-	case rootFlags.stasisAll:
-		stasisAllProbes()
-	case rootFlags.stasisGroup != "":
-		stasisGroupProbes(rootFlags.stasisGroup)
+	case cryostasisFlags.all:
+		cryostasisAllProbes()
+	case cryostasisFlags.group != "":
+		cryostasisGroupProbes(cryostasisFlags.group)
 	case len(args) == 1:
-		stasisProbe(args[0])
+		cryostasisProbe(args[0])
 	default:
 		horus.CheckErr(
 			errors.New(""),
@@ -78,7 +85,7 @@ func runStasis(cmd *cobra.Command, args []string) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func stasisProbe(name string) {
+func cryostasisProbe(name string) {
 	const op = "hypnos.stasis"
 
 	meta := loadProbeMeta(name)
@@ -119,19 +126,19 @@ func stasisProbe(name string) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func stasisGroupProbes(group string) {
+func cryostasisGroupProbes(group string) {
 	for _, metaFile := range listProbeMetaFiles() {
 		if matchProbeGroup(metaFile, group) {
-			stasisProbe(stripProbeName(metaFile))
+			cryostasisProbe(stripProbeName(metaFile))
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-func stasisAllProbes() {
+func cryostasisAllProbes() {
 	for _, metaFile := range listProbeMetaFiles() {
-		stasisProbe(stripProbeName(metaFile))
+		cryostasisProbe(stripProbeName(metaFile))
 	}
 }
 
