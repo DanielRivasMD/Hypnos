@@ -32,6 +32,22 @@
       ]
     ]
   },
+  "cryostasis": {
+    "use": "cryostasis [probe]",
+    "short": "Terminate & clean up probes",
+    "long": "Stops one or more downtime probes. Sends SIGTERM to each worker process, then removes its metadata and log files from ~/.hypnos/probe and ~/.hypnos/log. Supports purging a single probe, all probes, or all probes in a specific group.",
+    "example_usages": [
+      [
+        "hypnos stasis focus"
+      ],
+      [
+        "hypnos stasis --group deepwork"
+      ],
+      [
+        "hypnos stasis --all"
+      ]
+    ]
+  },
   "prime": {
     "use": "prime",
     "short": "Create hypnos directories",
@@ -45,7 +61,7 @@
       ]
     ]
   },
-  "hibernate": {
+  "hibernate-launcher": {
     "use": "hibernate [workflow]",
     "short": "Send a probe to hibernation",
     "long": "Schedules a downtime timer. All flags can be provided manually, or passed a workflow name to load defaults from ~/.hypnos/config/*.toml. The launcher spawns a hidden worker process that sleeps for the specified duration, optionally executes a script, sends a notification, and repeats based on --iterations or --recurrent. Metadata is saved under ~/.hypnos/probe.",
@@ -61,8 +77,8 @@
       ]
     ]
   },
-  "hibernate-run": {
-    "use": "hibernate-run",
+  "hibernate-worker": {
+    "use": "hibernate-worker",
     "short": "hidden worker command",
     "hidden": true
   },
@@ -76,22 +92,6 @@
       ],
       [
         "hypnos scan --verbose"
-      ]
-    ]
-  },
-  "stasis": {
-    "use": "stasis [probe]",
-    "short": "Terminate & clean up probes",
-    "long": "Stops one or more downtime probes. Sends SIGTERM to each worker process, then removes its metadata and log files from ~/.hypnos/probe and ~/.hypnos/log. Supports purging a single probe, all probes, or all probes in a specific group.",
-    "example_usages": [
-      [
-        "hypnos stasis focus"
-      ],
-      [
-        "hypnos stasis --group deepwork"
-      ],
-      [
-        "hypnos stasis --all"
       ]
     ]
   }
