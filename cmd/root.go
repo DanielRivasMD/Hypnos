@@ -48,9 +48,9 @@ var (
 	onceRoot  sync.Once
 	rootCmd   *cobra.Command
 	rootFlags struct {
-		verbose      bool
-		stasisAll    bool
-		stasisGroup  string
+		verbose     bool
+		stasisAll   bool
+		stasisGroup string
 	}
 	configDirs configDir
 )
@@ -120,7 +120,7 @@ func BuildCommands() {
 		CompletionCmd(),
 		IdentityCmd(),
 
-		HibernateCmd(),
+		HibernateLauncherCmd(),
 		HibernateWorkerCmd(),
 		PrimeCmd(),
 		ScanCmd(),
