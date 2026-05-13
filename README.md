@@ -35,7 +35,7 @@ inspecting or canceling timers
     │        │                                  │
     │        ▼                                  │
     │ ┌────────────────────────────────┐        │
-    │ │ hypnos hibernate-run (sleeper) │        │
+    │ │ hypnos hibernate-worker        │        │
     │ │ - sleeps                       │        │
     │ │ - executes script              │        │
     │ │ - sends notifications          │        │
@@ -55,9 +55,9 @@ inspecting or canceling timers
     └───────┬─────┘
             │
             ▼
-    ┌───────────────┐
-    │ hypnos stasis │ → kills process + removes files
-    └───────────────┘
+    ┌───────────────────┐
+    │ hypnos cryostasis │ → kills process + removes files
+    └───────────────────┘
 
 ### Storage Layout (~/.hypnos/)
 
