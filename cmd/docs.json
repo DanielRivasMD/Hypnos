@@ -19,6 +19,9 @@
     "long": "Schedule downtime timers that execute scripts or send notifications after a delay. Manage background workers, persists metadata, keeps logs, and provides commands to inspect, stop, or configure timers - all stored under ~/.hypnos.",
     "example_usages": [
       [
+        "hypnos cryostatis focus"
+      ],
+      [
         "hypnos prime"
       ],
       [
@@ -38,13 +41,13 @@
     "long": "Stops one or more downtime probes. Sends SIGTERM to each worker process, then removes its metadata and log files from ~/.hypnos/probe and ~/.hypnos/log. Supports purging a single probe, all probes, or all probes in a specific group.",
     "example_usages": [
       [
-        "hypnos stasis focus"
+        "hypnos cryostasis focus"
       ],
       [
-        "hypnos stasis --group deepwork"
+        "hypnos cryostasis --group deepwork"
       ],
       [
-        "hypnos stasis --all"
+        "hypnos cryostasis --all"
       ]
     ]
   },
